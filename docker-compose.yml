@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  tinyagi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: tinyagi
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    ports:
+      - "${TINYAGI_PORT:-8090}:8090"
+    networks:
+      - tinyagi-net
+
+networks:
+  tinyagi-net:
+    driver: bridge
