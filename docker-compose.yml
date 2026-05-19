@@ -1,6 +1,15 @@
 version: "3.9"
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - tinyagi-net
+
   tinyagi:
     build:
       context: .
@@ -17,7 +26,12 @@ services:
       - "${TINYAGI_PORT:-8090}:8090"
     networks:
       - tinyagi-net
+    depends_on:
+      - ollama
 
 networks:
   tinyagi-net:
     driver: bridge
+
+volumes:
+  ollama-data:
