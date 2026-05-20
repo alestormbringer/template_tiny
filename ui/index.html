@@ -6,507 +6,630 @@
     <title>TINYAGI // CONTROL HUB</title>
     <style>
         :root {
-            --bg: #04040f;
-            --bg-card: #08081a;
-            --bg-panel: #060614;
-            --cyan: #00ffff;
-            --green: #00ff88;
-            --orange: #ff6600;
-            --red: #ff0044;
-            --purple: #8844ff;
-            --text: #8888bb;
-            --text-bright: #d0d0ff;
-            --border: #12122a;
+            --bg:          #030308;
+            --bg-card:     #07071a;
+            --bg-panel:    #05050f;
+            --cyan:        #00ffff;
+            --green:       #00ff88;
+            --orange:      #ff6600;
+            --text:        #7070aa;
+            --text-bright: #c8c8f0;
+            --border:      #0f0f28;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
 
         body {
             background: var(--bg);
             color: var(--text);
             font-family: 'Courier New', monospace;
+            font-size: 14px;
             height: 100vh;
             overflow: hidden;
             background-image:
-                linear-gradient(rgba(0,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,255,255,0.02) 1px, transparent 1px);
+                linear-gradient(rgba(0,255,255,.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,255,.018) 1px, transparent 1px);
             background-size: 40px 40px;
         }
 
-        /* HEADER */
+        /* ── ANIMATIONS ── */
+        @keyframes pulse      { 0%,100%{opacity:1}  50%{opacity:.3} }
+        @keyframes flicker    { 0%,91%,100%{opacity:1}  93%{opacity:.6}  95%{opacity:.9}  97%{opacity:.5} }
+        @keyframes scan       { 0%{top:-100%}  100%{top:100%} }
+        @keyframes breathe    { 0%,100%{transform:scaleY(1) translateY(0)}  50%{transform:scaleY(1.04) translateY(-1px)} }
+        @keyframes patrol     { 0%{left:10%}   100%{left:58%} }
+        @keyframes arm-l      { from{transform:rotate(-38deg)}  to{transform:rotate(22deg)} }
+        @keyframes arm-r      { from{transform:rotate(22deg)}   to{transform:rotate(-38deg)} }
+        @keyframes leg-l      { from{transform:rotate(-28deg)}  to{transform:rotate(28deg)} }
+        @keyframes leg-r      { from{transform:rotate(28deg)}   to{transform:rotate(-28deg)} }
+        @keyframes bob        { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-2px)} }
+        @keyframes float-y    { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-8px)} }
+        @keyframes spin-slow  { from{transform:rotate(0)}  to{transform:rotate(360deg)} }
+        @keyframes dash       { to{stroke-dashoffset:-24} }
+        @keyframes expand-ring{ 0%{r:8;opacity:.5}  100%{r:50;opacity:0} }
+        @keyframes bar-grow   { 0%{height:20%}  50%{height:80%}  100%{height:40%} }
+
+        /* ── HEADER ── */
         header {
-            height: 56px;
+            height: 60px;
             background: var(--bg-panel);
-            border-bottom: 1px solid rgba(0,255,255,0.3);
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            gap: 32px;
-            box-shadow: 0 0 30px rgba(0,255,255,0.08);
+            border-bottom: 1px solid rgba(0,255,255,.22);
+            display: flex; align-items: center;
+            padding: 0 24px; gap: 32px;
+            box-shadow: 0 0 40px rgba(0,255,255,.05);
+            flex-shrink: 0;
         }
 
         .logo {
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 20px; font-weight: bold;
             color: var(--cyan);
-            text-shadow: 0 0 12px var(--cyan);
-            letter-spacing: 4px;
-            white-space: nowrap;
+            text-shadow: 0 0 14px var(--cyan);
+            letter-spacing: 4px; white-space: nowrap;
+            animation: flicker 10s infinite;
         }
 
-        .header-stats { display: flex; gap: 28px; flex: 1; }
+        .hstats { display:flex; gap:30px; flex:1; }
 
-        .stat { display: flex; flex-direction: column; }
-        .stat-label { font-size: 9px; color: var(--text); opacity: 0.5; letter-spacing: 1px; text-transform: uppercase; }
-        .stat-value { font-size: 13px; font-weight: bold; color: var(--cyan); }
-        .stat-value.green { color: var(--green); }
-        .stat-value.orange { color: var(--orange); }
+        .hstat { display:flex; flex-direction:column; }
+        .hstat-lbl { font-size:10px; opacity:.45; letter-spacing:1px; text-transform:uppercase; }
+        .hstat-val { font-size:16px; font-weight:bold; color:var(--cyan); }
+        .hstat-val.green  { color:var(--green); }
+        .hstat-val.orange { color:var(--orange); }
 
-        .pulse-dot {
-            display: inline-block;
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 8px var(--green);
-            margin-right: 5px;
-            animation: pulse 2s infinite;
+        .pdot {
+            display:inline-block; width:8px; height:8px;
+            border-radius:50%; background:var(--green);
+            box-shadow:0 0 8px var(--green);
+            margin-right:5px; animation:pulse 2s infinite;
         }
 
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        @keyframes scan { 0%{top:-100%} 100%{top:100%} }
-        @keyframes blink { 0%,100%{opacity:1} 49%{opacity:1} 50%{opacity:0} }
+        .rtag { font-size:11px; opacity:.3; margin-left:auto; }
 
-        .refresh-tag {
-            font-size: 10px;
-            color: var(--text);
-            opacity: 0.35;
-            margin-left: auto;
-        }
-
-        /* LAYOUT */
+        /* ── LAYOUT ── */
         .layout {
             display: grid;
-            grid-template-columns: 210px 1fr 250px;
-            height: calc(100vh - 56px);
+            grid-template-columns: 225px 1fr 265px;
+            height: calc(100vh - 60px);
         }
 
-        /* PANELS */
-        .panel {
+        /* ── SIDE PANELS ── */
+        .spanel {
             background: var(--bg-panel);
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             overflow: hidden;
         }
+        .spanel.left  { border-right: 1px solid var(--border); }
+        .spanel.right { border-left:  1px solid var(--border); }
 
-        .left-panel { border-right: 1px solid var(--border); }
-        .right-panel { border-left: 1px solid var(--border); }
-
-        .panel-header {
-            padding: 10px 14px;
-            font-size: 10px;
-            color: var(--cyan);
+        .phdr {
+            padding: 12px 16px;
+            font-size: 12px; color: var(--cyan);
             letter-spacing: 2px;
             border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            display: flex; align-items: center; gap: 8px;
             flex-shrink: 0;
         }
 
         .badge {
-            background: rgba(0,255,255,0.12);
-            border: 1px solid rgba(0,255,255,0.25);
-            color: var(--cyan);
-            font-size: 9px;
-            padding: 1px 6px;
-            border-radius: 10px;
+            background: rgba(0,255,255,.1);
+            border: 1px solid rgba(0,255,255,.22);
+            color: var(--cyan); font-size: 10px;
+            padding: 1px 8px; border-radius: 10px;
         }
 
-        /* AGENT LIST */
-        .agent-list { flex: 1; overflow-y: auto; padding: 8px; }
+        /* ── AGENT LIST ── */
+        .alist { flex:1; overflow-y:auto; padding:8px; }
 
-        .agent-item {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 7px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 1px solid transparent;
-            margin-bottom: 3px;
-            transition: all 0.15s;
+        .aitem {
+            display:flex; align-items:center; gap:10px;
+            padding:9px 12px; border-radius:5px;
+            cursor:pointer; border:1px solid transparent;
+            margin-bottom:4px; transition:all .15s;
         }
+        .aitem:hover { border-color:rgba(0,255,255,.28); background:rgba(0,255,255,.04); }
 
-        .agent-item:hover { border-color: rgba(0,255,255,0.3); background: rgba(0,255,255,0.04); }
+        .adot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+        .d-idle { background:var(--cyan);   box-shadow:0 0 6px var(--cyan); }
+        .d-busy { background:var(--orange); box-shadow:0 0 6px var(--orange); animation:pulse .8s infinite; }
+        .d-off  { background:#222; }
 
-        .a-dot {
-            width: 7px; height: 7px;
-            border-radius: 50%; flex-shrink: 0;
-        }
-        .d-idle  { background: var(--cyan);   box-shadow: 0 0 5px var(--cyan); }
-        .d-busy  { background: var(--orange); box-shadow: 0 0 5px var(--orange); animation: pulse 0.8s infinite; }
-        .d-off   { background: #222; }
-
-        .a-info { flex: 1; min-width: 0; }
-        .a-id   { font-size: 11px; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .a-role { font-size: 9px; color: var(--text); opacity: 0.5; }
+        .ainfo { flex:1; min-width:0; }
+        .aid   { font-size:13px; color:var(--text-bright); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .arole { font-size:10px; opacity:.5; }
 
         .add-btn {
-            margin: 8px;
-            padding: 9px;
-            border: 1px dashed rgba(0,255,255,0.4);
-            background: transparent;
-            color: var(--cyan);
-            font-family: monospace;
-            font-size: 11px;
-            cursor: pointer;
-            border-radius: 4px;
-            letter-spacing: 1px;
-            transition: all 0.2s;
-            flex-shrink: 0;
+            margin:8px; padding:11px;
+            border:1px dashed rgba(0,255,255,.35);
+            background:transparent; color:var(--cyan);
+            font-family:monospace; font-size:12px;
+            cursor:pointer; border-radius:5px; letter-spacing:1px;
+            transition:all .2s; flex-shrink:0;
         }
-        .add-btn:hover { background: rgba(0,255,255,0.08); box-shadow: 0 0 12px rgba(0,255,255,0.15); }
+        .add-btn:hover { background:rgba(0,255,255,.07); box-shadow:0 0 16px rgba(0,255,255,.14); }
 
-        /* CENTER */
-        .center-panel {
-            padding: 14px;
+        /* ── CENTER ── */
+        .cpanel {
             overflow-y: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 20px;
             background: var(--bg);
         }
 
-        .rooms-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-            gap: 14px;
+        .rwrap {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 20px;
+            width: 100%;
         }
 
-        .room {
+        /* ── ROOM CARD ── */
+        .rcard {
+            width: 230px;
             background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 14px;
+            transition: transform .2s, box-shadow .2s;
+            cursor: pointer;
+        }
+        .rcard:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 14px 35px rgba(0,0,0,.75),
+                        0 0 25px rgba(var(--glow-rgb),.08);
+        }
+
+        /* top glow bar */
+        .rcard::before {
+            content:''; display:block; height:2px;
+            background: var(--glow);
+            box-shadow: 0 0 12px var(--glow);
+        }
+
+        .rcard-hdr {
+            padding: 10px 13px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .rlabel { font-size:11px; color:var(--glow); letter-spacing:1px; text-shadow:0 0 6px var(--glow); }
+        .rstatus { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text); }
+        .rring {
+            width:9px; height:9px; border-radius:50%;
+            border:2px solid var(--glow);
+            box-shadow:0 0 5px var(--glow);
+        }
+        .rring.busy { animation:pulse .8s infinite; }
+
+        /* ── INTERIOR ── */
+        .rint {
+            height: 175px;
             position: relative;
             overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .room:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+        /* scan on busy */
+        .rcard.busy .rint::after {
+            content:'';
+            position:absolute; top:-100%; left:0; right:0; height:100%;
+            background:linear-gradient(transparent 50%, rgba(255,102,0,.022) 50%);
+            background-size:100% 4px;
+            animation:scan 5s linear infinite;
+            pointer-events:none;
+        }
 
-        .room::before {
-            content: '';
+        /* floor line */
+        .rfloor {
+            position:absolute; bottom:0; left:0; right:0; height:2px;
+            background:linear-gradient(90deg, transparent, var(--glow), transparent);
+            opacity:.35;
+        }
+
+        /* ── HUMANOID ── */
+        .human {
             position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
+            bottom: 10px;
+            display: flex; flex-direction: column; align-items: center;
+            width: 26px;
+            transform-origin: bottom center;
+        }
+        .human.idle {
+            left: 38%;
+            animation: breathe 3.5s ease-in-out infinite;
+        }
+        .human.walking {
+            animation: patrol 3s ease-in-out infinite alternate;
+        }
+        .human.walking .hhead { animation: bob .35s ease-in-out infinite alternate; }
+        .human.walking .htorso::before { animation: arm-l .35s ease-in-out infinite alternate; }
+        .human.walking .htorso::after  { animation: arm-r .35s ease-in-out infinite alternate; }
+        .human.walking .hlegl { animation: leg-l .35s ease-in-out infinite alternate; }
+        .human.walking .hlegr { animation: leg-r .35s ease-in-out infinite alternate; }
+
+        .hhead {
+            width:13px; height:13px; border-radius:50%;
+            background: var(--glow);
+            box-shadow: 0 0 8px var(--glow), 0 0 18px var(--glow);
+            margin-bottom:2px; flex-shrink:0;
+        }
+        .htorso {
+            width:11px; height:15px;
+            background: var(--glow); opacity:.85;
+            border-radius:2px; position:relative;
+            margin-bottom:2px; flex-shrink:0;
+        }
+        .htorso::before, .htorso::after {
+            content:'';
+            position:absolute;
+            width:5px; height:12px;
+            background:var(--glow); opacity:.8;
+            border-radius:2px; top:1px;
+            transform-origin:top center;
+        }
+        .htorso::before { left:-6px; }
+        .htorso::after  { right:-6px; }
+        .hlegs { display:flex; gap:2px; }
+        .hlegl, .hlegr {
+            width:5px; height:12px;
+            background:var(--glow); opacity:.8;
+            border-radius:2px;
+            transform-origin:top center;
         }
 
-        .room.idle   { border-color: rgba(0,255,255,0.15); }
-        .room.busy   { border-color: rgba(255,102,0,0.35); }
-        .room.done   { border-color: rgba(0,255,136,0.15); }
+        /* ── ROOM THEMES ── */
+        .th-tinyagi  { background:radial-gradient(ellipse at 50% 100%,#150030 0%,#06001a 100%); --glow:#aa44ff; }
+        .th-analyst  { background:radial-gradient(ellipse at 50% 100%,#001535 0%,#000c20 100%); --glow:#0088ff; }
+        .th-notion   { background:radial-gradient(ellipse at 50% 100%,#002518 0%,#001510 100%); --glow:#00ffaa; }
+        .th-finance  { background:radial-gradient(ellipse at 50% 100%,#241300 0%,#130900 100%); --glow:#ffaa00; }
+        .th-business { background:radial-gradient(ellipse at 50% 100%,#10122c 0%,#08091c 100%); --glow:#8899ee; }
+        .th-copy     { background:radial-gradient(ellipse at 50% 100%,#24001a 0%,#14000e 100%); --glow:#ff44cc; }
+        .th-publish  { background:radial-gradient(ellipse at 50% 100%,#241000 0%,#140600 100%); --glow:#ff6600; }
+        .th-analytics{ background:radial-gradient(ellipse at 50% 100%,#001c24 0%,#000f14 100%); --glow:#00e5ff; }
 
-        .room.idle::before  { background: var(--cyan);   box-shadow: 0 0 8px var(--cyan); }
-        .room.busy::before  { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
-        .room.done::before  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
-
-        .room.busy::after {
-            content: '';
-            position: absolute;
-            top: -100%; left: 0; right: 0; height: 100%;
-            background: linear-gradient(transparent 50%, rgba(255,102,0,0.025) 50%);
-            background-size: 100% 4px;
-            animation: scan 4s linear infinite;
-            pointer-events: none;
+        /* ── ROOM FOOTER ── */
+        .rfoot { padding:11px 13px; border-top:1px solid var(--border); }
+        .rfname  { font-size:14px; color:var(--text-bright); font-weight:bold; margin-bottom:2px; }
+        .rfmodel { font-size:10px; opacity:.4; margin-bottom:7px; }
+        .rflog {
+            font-size:11px; color:var(--text); line-height:1.7;
+            background:rgba(0,0,0,.3);
+            border-left:2px solid var(--border);
+            padding:5px 8px; border-radius:2px;
+        }
+        .rflog.live { border-color:var(--orange); color:var(--orange); }
+        .rfst {
+            margin-top:7px; font-size:10px; opacity:.38;
+            display:flex; justify-content:space-between;
         }
 
-        .room-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+        /* ── QUEUE ── */
+        .qbody { flex:1; overflow-y:auto; padding:8px; }
+        .qitem {
+            padding:9px 11px; border:1px solid var(--border);
+            border-radius:4px; margin-bottom:6px; font-size:11px;
         }
+        .qitem.running { border-color:rgba(255,102,0,.4); background:rgba(255,102,0,.04); }
+        .qitem.done    { border-color:rgba(0,255,136,.2);  background:rgba(0,255,136,.03); opacity:.55; }
+        .qst { font-size:10px; margin-bottom:3px; }
+        .qst.running { color:var(--orange); }
+        .qst.pending { color:var(--text); opacity:.5; }
+        .qst.done    { color:var(--green); }
+        .qtask  { color:var(--text-bright); margin-bottom:2px; font-size:12px; }
+        .qagent { opacity:.4; font-size:10px; }
 
-        .room-label {
-            font-size: 10px;
-            color: var(--cyan);
-            letter-spacing: 1px;
+        /* ── ANALYTICS ── */
+        .abody { padding:14px; border-top:1px solid var(--border); flex-shrink:0; }
+        .arow {
+            display:flex; justify-content:space-between;
+            padding:6px 0; border-bottom:1px solid var(--border);
+            font-size:12px;
         }
+        .arow:last-child { border-bottom:none; }
+        .albl { opacity:.6; }
+        .aval { color:var(--green); font-weight:bold; }
+        .anotice { margin-top:10px; font-size:10px; opacity:.28; text-align:center; line-height:1.7; }
 
-        .ring {
-            width: 10px; height: 10px;
-            border-radius: 50%;
-            border: 2px solid;
-        }
-        .ring-idle { border-color: var(--cyan);   box-shadow: 0 0 5px var(--cyan); }
-        .ring-busy { border-color: var(--orange); box-shadow: 0 0 5px var(--orange); animation: pulse 0.8s infinite; }
-        .ring-off  { border-color: #333; }
-
-        .room-name  { font-size: 12px; color: var(--text-bright); font-weight: bold; margin-bottom: 2px; }
-        .room-model { font-size: 9px; color: var(--text); opacity: 0.4; margin-bottom: 10px; }
-
-        .room-log {
-            background: rgba(0,0,0,0.35);
-            border-left: 2px solid var(--border);
-            border-radius: 3px;
-            padding: 7px 8px;
-            font-size: 9px;
-            min-height: 44px;
-            line-height: 1.7;
-        }
-
-        .log-line { color: var(--text); }
-        .log-line.live { color: var(--green); }
-
-        .room-foot {
-            margin-top: 9px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 9px;
-            opacity: 0.4;
-        }
-
-        /* QUEUE */
-        .queue-body { flex: 1; overflow-y: auto; padding: 8px; }
-
-        .q-item {
-            padding: 8px 10px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            margin-bottom: 6px;
-            font-size: 10px;
-        }
-
-        .q-item.running { border-color: rgba(255,102,0,0.4); background: rgba(255,102,0,0.04); }
-        .q-item.pending { border-color: var(--border); }
-        .q-item.done    { border-color: rgba(0,255,136,0.2); background: rgba(0,255,136,0.03); opacity: 0.55; }
-
-        .q-status { font-size: 9px; margin-bottom: 3px; }
-        .q-status.running { color: var(--orange); }
-        .q-status.pending { color: var(--text); opacity: 0.5; }
-        .q-status.done    { color: var(--green); }
-
-        .q-task  { color: var(--text-bright); margin-bottom: 2px; }
-        .q-agent { color: var(--text); opacity: 0.45; font-size: 9px; }
-
-        /* ANALYTICS */
-        .analytics-body {
-            padding: 12px;
-            border-top: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .a-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 10px;
-        }
-        .a-row:last-child { border-bottom: none; }
-        .a-lbl { color: var(--text); opacity: 0.6; }
-        .a-val { color: var(--green); font-weight: bold; }
-
-        .api-notice {
-            margin-top: 10px;
-            font-size: 9px;
-            color: var(--text);
-            opacity: 0.3;
-            text-align: center;
-            line-height: 1.6;
-        }
-
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--cyan); opacity: 0.5; }
+        ::-webkit-scrollbar { width:3px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="logo">◈ TINYAGI // HUB</div>
-    <div class="header-stats">
-        <div class="stat">
-            <span class="stat-label">Sistema</span>
-            <span class="stat-value"><span class="pulse-dot"></span>ONLINE</span>
+    <div class="hstats">
+        <div class="hstat">
+            <span class="hstat-lbl">Sistema</span>
+            <span class="hstat-val"><span class="pdot"></span>ONLINE</span>
         </div>
-        <div class="stat">
-            <span class="stat-label">Uptime</span>
-            <span class="stat-value" id="uptime">—</span>
+        <div class="hstat">
+            <span class="hstat-lbl">Uptime</span>
+            <span class="hstat-val" id="uptime">—</span>
         </div>
-        <div class="stat">
-            <span class="stat-label">Agenti</span>
-            <span class="stat-value" id="hdr-agents">—</span>
+        <div class="hstat">
+            <span class="hstat-lbl">Agenti</span>
+            <span class="hstat-val" id="hdr-agents">—</span>
         </div>
-        <div class="stat">
-            <span class="stat-label">Revenue</span>
-            <span class="stat-value green" id="hdr-revenue">$0.00</span>
+        <div class="hstat">
+            <span class="hstat-lbl">Revenue</span>
+            <span class="hstat-val green">$0.00</span>
         </div>
-        <div class="stat">
-            <span class="stat-label">Prodotti live</span>
-            <span class="stat-value orange" id="hdr-products">0</span>
+        <div class="hstat">
+            <span class="hstat-lbl">Prodotti live</span>
+            <span class="hstat-val orange">0</span>
         </div>
     </div>
-    <div class="refresh-tag" id="rtag">↻ 5s</div>
+    <div class="rtag" id="rtag">↻ 5s</div>
 </header>
 
 <div class="layout">
 
     <!-- LEFT -->
-    <div class="panel left-panel">
-        <div class="panel-header">
-            ◈ AGENTI
-            <span class="badge" id="badge-agents">0</span>
-        </div>
-        <div class="agent-list" id="agent-list"></div>
-        <button class="add-btn" onclick="showAddHelp()">+ AGGIUNGI AGENTE</button>
+    <div class="spanel left">
+        <div class="phdr">◈ AGENTI <span class="badge" id="badge">0</span></div>
+        <div class="alist" id="alist"></div>
+        <button class="add-btn" onclick="showHelp()">+ AGGIUNGI AGENTE</button>
     </div>
 
     <!-- CENTER -->
-    <div class="center-panel">
-        <div class="rooms-grid" id="rooms-grid"></div>
+    <div class="cpanel">
+        <div class="rwrap" id="rwrap"></div>
     </div>
 
     <!-- RIGHT -->
-    <div class="panel right-panel">
-        <div class="panel-header">◈ CODA LAVORI</div>
-        <div class="queue-body" id="queue-body">
-            <div class="q-item pending">
-                <div class="q-status pending">⬡ STANDBY</div>
-                <div class="q-task">Nessun task in coda</div>
-                <div class="q-agent">— sistema in attesa —</div>
+    <div class="spanel right">
+        <div class="phdr">◈ CODA LAVORI</div>
+        <div class="qbody" id="qbody">
+            <div class="qitem">
+                <div class="qst pending">⬡ STANDBY</div>
+                <div class="qtask">Nessun task in coda</div>
+                <div class="qagent">— sistema in attesa —</div>
             </div>
         </div>
-
-        <div class="analytics-body">
-            <div class="panel-header" style="padding:0 0 10px;border:none;">◈ ANALYTICS</div>
-            <div class="a-row"><span class="a-lbl">Revenue oggi</span><span class="a-val" id="rev-today">$0.00</span></div>
-            <div class="a-row"><span class="a-lbl">Revenue mese</span><span class="a-val" id="rev-month">$0.00</span></div>
-            <div class="a-row"><span class="a-lbl">Vendite totali</span><span class="a-val" id="sales-total">0</span></div>
-            <div class="a-row"><span class="a-lbl">Prodotti live</span><span class="a-val" id="products-live">0</span></div>
-            <div class="a-row"><span class="a-lbl">Top prodotto</span><span class="a-val" id="top-product" style="font-size:9px">—</span></div>
-            <div class="api-notice">Collega Gumroad API<br>per dati reali</div>
+        <div class="abody">
+            <div class="phdr" style="padding:0 0 11px;border:none;">◈ ANALYTICS</div>
+            <div class="arow"><span class="albl">Revenue oggi</span><span class="aval">$0.00</span></div>
+            <div class="arow"><span class="albl">Revenue mese</span><span class="aval">$0.00</span></div>
+            <div class="arow"><span class="albl">Vendite totali</span><span class="aval">0</span></div>
+            <div class="arow"><span class="albl">Prodotti live</span><span class="aval">0</span></div>
+            <div class="arow"><span class="albl">Top prodotto</span><span class="aval" style="font-size:10px">—</span></div>
+            <div class="anotice">Collega Gumroad API<br>per dati reali</div>
         </div>
     </div>
 
 </div>
 
 <script>
-    const API = window.location.origin.replace(':3000','') + ':8090';
+const API = `${location.protocol}//${location.hostname}:8090`;
 
-    const ROLES = {
-        'tinyagi':          'Orchestratore',
-        'market-analyst':   'Market Analysis',
-        'notion-creator':   'Notion / Produttività',
-        'finance-creator':  'Finance / Excel',
-        'business-creator': 'Business / Freelance',
-        'template-creator': 'Template Creator',
-        'copywriter':       'SEO Copywriting',
-        'publisher':        'Gumroad Publisher',
-        'analytics':        'Sales Analytics',
-    };
+const META = {
+    'tinyagi':          { role:'Orchestratore',         icon:'◈', th:'tinyagi',   lbl:'CMD'  },
+    'market-analyst':   { role:'Market Analysis',       icon:'◎', th:'analyst',   lbl:'DATA' },
+    'notion-creator':   { role:'Notion / Produttività', icon:'▣', th:'notion',    lbl:'NTFN' },
+    'finance-creator':  { role:'Finance / Excel',       icon:'◆', th:'finance',   lbl:'FIN'  },
+    'business-creator': { role:'Business / Freelance',  icon:'◉', th:'business',  lbl:'BIZ'  },
+    'template-creator': { role:'Template Creator',      icon:'▣', th:'notion',    lbl:'TPL'  },
+    'copywriter':       { role:'SEO Copywriting',       icon:'◌', th:'copy',      lbl:'COPY' },
+    'publisher':        { role:'Gumroad Publisher',     icon:'▲', th:'publish',   lbl:'PUB'  },
+    'analytics':        { role:'Sales Analytics',       icon:'◐', th:'analytics', lbl:'ANLT' },
+};
 
-    const ICONS = {
-        'tinyagi':          '◈',
-        'market-analyst':   '◎',
-        'notion-creator':   '▣',
-        'finance-creator':  '◆',
-        'business-creator': '◉',
-        'template-creator': '▣',
-        'copywriter':       '◌',
-        'publisher':        '▲',
-        'analytics':        '◐',
-    };
+const GLOW = {
+    tinyagi:'#aa44ff', analyst:'#0088ff', notion:'#00ffaa',
+    finance:'#ffaa00', business:'#8899ee', copy:'#ff44cc',
+    publish:'#ff6600', analytics:'#00e5ff',
+};
 
-    let countdown = 5;
+// ── Room decorations (SVG) ─────────────────────────────────────────────
+const DECO = {
+    tinyagi: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <circle cx="115" cy="65" r="50" stroke="rgba(170,68,255,.12)" stroke-width="1" fill="none"/>
+            <circle cx="115" cy="65" r="33" stroke="rgba(170,68,255,.09)" stroke-width="1" fill="none"/>
+            <circle cx="115" cy="65" r="16" stroke="rgba(170,68,255,.18)" stroke-width="1" fill="none"/>
+            <line x1="65" y1="65" x2="165" y2="65" stroke="rgba(170,68,255,.08)" stroke-width="1"/>
+            <line x1="115" y1="15" x2="115" y2="115" stroke="rgba(170,68,255,.08)" stroke-width="1"/>
+            <circle cx="115" cy="65" r="3" fill="rgba(170,68,255,.6)"/>
+            <circle cx="115" cy="65" r="3" fill="none" stroke="rgba(170,68,255,.3)" stroke-width="1">
+                <animate attributeName="r" from="4" to="20" dur="2.5s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" from=".4" to="0" dur="2.5s" repeatCount="indefinite"/>
+            </circle>
+        </svg>`,
 
-    function fmtUptime(s) {
-        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
-        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
-    }
+    analyst: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <polyline points="15,145 45,108 72,122 100,78 128,94 156,52 184,68 215,28"
+                stroke="rgba(0,136,255,.28)" stroke-width="1.5" fill="none"
+                stroke-dasharray="5 2">
+                <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.8s" repeatCount="indefinite"/>
+            </polyline>
+            <circle cx="100" cy="78"  r="3" fill="rgba(0,136,255,.55)"/>
+            <circle cx="156" cy="52"  r="3" fill="rgba(0,136,255,.55)"/>
+            <line x1="15" y1="150" x2="215" y2="150" stroke="rgba(0,136,255,.12)" stroke-width="1"/>
+            <line x1="15" y1="20"  x2="15"  y2="150" stroke="rgba(0,136,255,.12)" stroke-width="1"/>
+            <rect x="170" y="22" width="22" height="35" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.15)" stroke-width="1"/>
+            <rect x="196" y="38" width="22" height="19" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.15)" stroke-width="1"/>
+        </svg>`,
 
-    function renderLeft(agents) {
-        const entries = Object.entries(agents);
-        document.getElementById('badge-agents').textContent = entries.length;
-        document.getElementById('hdr-agents').textContent = entries.length;
-        document.getElementById('agent-list').innerHTML = entries.map(([id, ag]) => `
-            <div class="agent-item" onclick="scrollToRoom('${id}')">
-                <div class="a-dot d-idle"></div>
-                <div class="a-info">
-                    <div class="a-id">${id}</div>
-                    <div class="a-role">${ROLES[id] || ag.name || id}</div>
+    notion: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <rect x="30" y="18" width="70" height="95" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.16)" stroke-width="1"/>
+            <line x1="42" y1="34" x2="88" y2="34" stroke="rgba(0,255,170,.25)" stroke-width="1.5"/>
+            <line x1="42" y1="47" x2="84" y2="47" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+            <line x1="42" y1="58" x2="80" y2="58" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+            <line x1="42" y1="69" x2="86" y2="69" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+            <line x1="42" y1="80" x2="75" y2="80" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+            <rect x="120" y="35" width="70" height="60" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+            <line x1="132" y1="50" x2="178" y2="50" stroke="rgba(0,255,170,.18)" stroke-width="1"/>
+            <line x1="132" y1="62" x2="172" y2="62" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
+            <line x1="132" y1="74" x2="175" y2="74" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
+        </svg>`,
+
+    finance: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <polyline points="15,138 48,105 78,120 110,72 140,88 170,48 200,62"
+                stroke="rgba(255,170,0,.25)" stroke-width="1.5" fill="none"/>
+            <polyline points="15,152 48,128 78,140 110,98 140,112 170,75 200,85"
+                stroke="rgba(255,170,0,.1)" stroke-width="1" fill="none"/>
+            <text x="96"  y="30"  font-family="monospace" font-size="22" fill="rgba(255,170,0,.07)">$</text>
+            <text x="160" y="52"  font-family="monospace" font-size="16" fill="rgba(255,170,0,.06)">$</text>
+            <text x="35"  y="85"  font-family="monospace" font-size="13" fill="rgba(255,170,0,.06)">%</text>
+            <line x1="15" y1="155" x2="215" y2="155" stroke="rgba(255,170,0,.14)" stroke-width="1"/>
+        </svg>`,
+
+    business: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <rect x="25" y="105" width="180" height="6" rx="1" fill="rgba(136,153,238,.18)"/>
+            <rect x="45"  y="72" width="35" height="33" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.12)" stroke-width="1"/>
+            <rect x="97"  y="55" width="35" height="50" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.12)" stroke-width="1"/>
+            <rect x="148" y="78" width="35" height="27" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.12)" stroke-width="1"/>
+            <rect x="18"  y="22" width="55" height="38" rx="2" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.14)" stroke-width="1"/>
+            <line x1="28" y1="33" x2="62" y2="33" stroke="rgba(136,153,238,.18)" stroke-width="1"/>
+            <line x1="28" y1="43" x2="58" y2="43" stroke="rgba(136,153,238,.08)" stroke-width="1"/>
+        </svg>`,
+
+    copy: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <text x="14" y="33" font-family="monospace" font-size="10" fill="rgba(255,68,204,.18)" letter-spacing="2">SEO TITLE</text>
+            <line x1="14" y1="43"  x2="155" y2="43"  stroke="rgba(255,68,204,.2)"  stroke-width="1.5"/>
+            <line x1="14" y1="64"  x2="130" y2="64"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+            <line x1="14" y1="76"  x2="140" y2="76"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+            <line x1="14" y1="88"  x2="118" y2="88"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+            <line x1="14" y1="100" x2="135" y2="100" stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+            <text x="162" y="33" font-family="monospace" font-size="9" fill="rgba(255,68,204,.14)">TAGS</text>
+            <rect x="162" y="40" width="55" height="55" rx="2" fill="none" stroke="rgba(255,68,204,.1)" stroke-width="1"/>
+            <text x="167" y="56" font-family="monospace" font-size="8" fill="rgba(255,68,204,.1)">#notion</text>
+            <text x="167" y="68" font-family="monospace" font-size="8" fill="rgba(255,68,204,.08)">#template</text>
+            <text x="167" y="80" font-family="monospace" font-size="8" fill="rgba(255,68,204,.08)">#digital</text>
+        </svg>`,
+
+    publish: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <circle cx="115" cy="55" r="5" fill="rgba(255,102,0,.5)"/>
+            <circle cx="115" cy="55" r="5" fill="none" stroke="rgba(255,102,0,.4)" stroke-width="1">
+                <animate attributeName="r" from="8" to="50" dur="2.2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" from=".5" to="0" dur="2.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="115" cy="55" r="5" fill="none" stroke="rgba(255,102,0,.25)" stroke-width="1">
+                <animate attributeName="r" from="8" to="60" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" from=".3" to="0" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
+            </circle>
+            <line x1="15" y1="148" x2="215" y2="148" stroke="rgba(255,102,0,.1)" stroke-width="1"/>
+            <text x="95" y="115" font-family="monospace" font-size="10" fill="rgba(255,102,0,.2)" letter-spacing="2">LIVE</text>
+        </svg>`,
+
+    analytics: () => `
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 230 175" preserveAspectRatio="none">
+            <rect x="18"  y="90"  width="24" height="60" rx="1" fill="rgba(0,229,255,.14)" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <rect x="52"  y="62"  width="24" height="88" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <rect x="86"  y="75"  width="24" height="75" rx="1" fill="rgba(0,229,255,.14)" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <rect x="120" y="42"  width="24" height="108" rx="1" fill="rgba(0,229,255,.2)" stroke="rgba(0,229,255,.28)" stroke-width="1"/>
+            <rect x="154" y="65"  width="24" height="85" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <rect x="188" y="82"  width="24" height="68" rx="1" fill="rgba(0,229,255,.14)" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <line x1="12" y1="150" x2="218" y2="150" stroke="rgba(0,229,255,.15)" stroke-width="1"/>
+        </svg>`,
+};
+
+// ── Build room HTML ────────────────────────────────────────────────────
+function buildRoom(id, ag, status) {
+    const m    = META[id] || { role: ag.name || id, icon:'◈', th:'analyst', lbl:'AGT' };
+    const glow = GLOW[m.th] || '#00ffff';
+    const walk = status === 'busy';
+    return `
+    <div class="rcard ${status}" id="room-${id}"
+         style="--glow:${glow}" onclick="scrollToRoom('${id}')">
+        <div class="rcard-hdr">
+            <span class="rlabel">${m.icon} ${id.toUpperCase()}</span>
+            <div class="rstatus">
+                <div class="rring ${walk ? 'busy':''}"></div>
+                <span>${walk ? 'BUSY':'IDLE'}</span>
+            </div>
+        </div>
+        <div class="rint th-${m.th}" style="--glow:${glow}">
+            ${(DECO[m.th] || DECO.analyst)()}
+            <div class="rfloor" style="--glow:${glow}"></div>
+            <div class="human ${walk ? 'walking':'idle'}" style="--glow:${glow}">
+                <div class="hhead"></div>
+                <div class="htorso"></div>
+                <div class="hlegs">
+                    <div class="hlegl"></div>
+                    <div class="hlegr"></div>
                 </div>
             </div>
-        `).join('');
-    }
+        </div>
+        <div class="rfoot">
+            <div class="rfname">${ag.name || id}</div>
+            <div class="rfmodel">${ag.model || 'llama3.1:8b'} · ${ag.provider || 'ollama-local'}</div>
+            <div class="rflog ${walk ? 'live':''}">${walk ? '▶ task in corso...' : '— standby —'}</div>
+            <div class="rfst"><span>${m.role}</span><span>${walk ? 'BUSY':'IDLE'}</span></div>
+        </div>
+    </div>`;
+}
 
-    function renderRooms(agents) {
-        const entries = Object.entries(agents);
-        document.getElementById('rooms-grid').innerHTML = entries.map(([id, ag]) => {
-            const icon  = ICONS[id] || '◈';
-            const role  = ROLES[id] || 'Agent';
-            const model = ag.model || 'llama3.1:8b';
-            const prov  = ag.provider || 'ollama-local';
-            return `
-            <div class="room idle" id="room-${id}">
-                <div class="room-head">
-                    <span class="room-label">${icon} ${id.toUpperCase()}</span>
-                    <div class="ring ring-idle"></div>
-                </div>
-                <div class="room-name">${ag.name || id}</div>
-                <div class="room-model">${model} · ${prov}</div>
-                <div class="room-log">
-                    <div class="log-line">${role}</div>
-                    <div class="log-line" style="opacity:.35">— standby —</div>
-                </div>
-                <div class="room-foot">
-                    <span>IDLE</span>
-                    <span>—</span>
-                </div>
-            </div>`;
-        }).join('');
-    }
+// ── Render ─────────────────────────────────────────────────────────────
+function renderLeft(agents) {
+    const entries = Object.entries(agents);
+    document.getElementById('badge').textContent      = entries.length;
+    document.getElementById('hdr-agents').textContent = entries.length;
+    document.getElementById('alist').innerHTML        = entries.map(([id, ag]) => {
+        const m = META[id] || { role: ag.name || id, icon:'◈' };
+        return `<div class="aitem" onclick="scrollToRoom('${id}')">
+            <div class="adot d-idle"></div>
+            <div class="ainfo">
+                <div class="aid">${id}</div>
+                <div class="arole">${m.role}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
 
-    function scrollToRoom(id) {
-        document.getElementById('room-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+function renderRooms(agents) {
+    document.getElementById('rwrap').innerHTML =
+        Object.entries(agents).map(([id, ag]) => buildRoom(id, ag, 'idle')).join('');
+}
 
-    function showAddHelp() {
-        alert('Apri il terminale e lancia:\n\ndocker exec -it tinyagi npx tinyagi agent add');
-    }
+function scrollToRoom(id) {
+    document.getElementById('room-' + id)?.scrollIntoView({ behavior:'smooth', block:'center' });
+}
 
-    async function fetchAgents() {
-        try {
-            const r = await fetch(`${API}/api/agents`);
-            const d = await r.json();
-            renderLeft(d);
-            renderRooms(d);
-        } catch(e) { console.warn('agents:', e); }
-    }
+function showHelp() {
+    alert('Apri il terminale SSH e lancia:\n\ndocker exec -it tinyagi npx tinyagi agent add');
+}
 
-    async function fetchStatus() {
-        try {
-            const r = await fetch(`${API}/api/status`);
-            const d = await r.json();
-            if (d.uptime != null)
-                document.getElementById('uptime').textContent = fmtUptime(Math.floor(d.uptime));
-        } catch(e) {}
-    }
+// ── API ────────────────────────────────────────────────────────────────
+function fmt(s) {
+    s = Math.floor(s);
+    return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
 
-    function tick() {
-        countdown--;
-        document.getElementById('rtag').textContent = `↻ ${countdown}s`;
-        if (countdown <= 0) {
-            countdown = 5;
-            refresh();
-        }
-    }
+async function fetchAgents() {
+    const r = await fetch(`${API}/api/agents`);
+    const d = await r.json();
+    renderLeft(d); renderRooms(d);
+}
 
-    async function refresh() {
-        await Promise.all([fetchAgents(), fetchStatus()]);
-    }
+async function fetchStatus() {
+    const r = await fetch(`${API}/api/status`);
+    const d = await r.json();
+    if (d.uptime != null) document.getElementById('uptime').textContent = fmt(d.uptime);
+}
 
-    refresh();
-    setInterval(tick, 1000);
+let cd = 5;
+async function refresh() {
+    try { await Promise.all([fetchAgents(), fetchStatus()]); } catch(e) {}
+    cd = 5;
+}
+
+setInterval(() => {
+    cd--;
+    document.getElementById('rtag').textContent = `↻ ${cd}s`;
+    if (cd <= 0) refresh();
+}, 1000);
+
+refresh();
 </script>
 </body>
 </html>
