@@ -19,7 +19,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./config/settings.json:/root/.tinyagi/settings.json
+      - ./config:/root/.tinyagi
       - tinyagi-data:/root/workspace
     ports:
       - "${TINYAGI_PORT:-8090}:3777"
