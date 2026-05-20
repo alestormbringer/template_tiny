@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import AgentGrid   from './components/AgentGrid.jsx'
+import ColonyWorld from './components/ColonyWorld.jsx'
 import LeftPanel   from './components/LeftPanel.jsx'
 import RightPanel  from './components/RightPanel.jsx'
 import TopHUD      from './components/TopHUD.jsx'
@@ -39,18 +39,20 @@ export default function App() {
           className="panel-wrap"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
           <LeftPanel data={data} />
         </motion.div>
 
-        <AgentGrid agents={data} />
+        <div className="colony-world">
+          <ColonyWorld agents={data} />
+        </div>
 
         <motion.div
           className="panel-wrap"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
           <RightPanel data={data} />
         </motion.div>
