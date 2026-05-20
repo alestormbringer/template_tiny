@@ -1,0 +1,29 @@
+{
+  "workspace": {
+    "path": "/root/workspace",
+    "name": "tinyagi-workspace"
+  },
+  "channels": {
+    "enabled": []
+  },
+  "agents": {
+    "tinyagi": {
+      "name": "TinyAGI Agent",
+      "provider": "ollama-local",
+      "model": "llama3.1:8b",
+      "working_directory": "/root/workspace/tinyagi"
+    }
+  },
+  "custom_providers": {
+    "ollama-local": {
+      "name": "Ollama (locale)",
+      "harness": "openai",
+      "base_url": "http://ollama:11434/v1",
+      "api_key": "ollama",
+      "model": "llama3.1:8b"
+    }
+  },
+  "monitoring": {
+    "heartbeat_interval": 3600
+  }
+}

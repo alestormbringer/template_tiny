@@ -19,11 +19,10 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config:/app/config
+      - ./config/settings.json:/root/.tinyagi/settings.json
+      - tinyagi-data:/root/workspace
     ports:
-      - "${TINYAGI_PORT:-8090}:8090"
+      - "${TINYAGI_PORT:-8090}:3777"
     networks:
       - tinyagi-net
     depends_on:
@@ -35,3 +34,4 @@ networks:
 
 volumes:
   ollama-data:
+  tinyagi-data:

@@ -1,2 +1,2 @@
-git+https://github.com/TinyAGI/tinyagi.git
-python-dotenv>=1.0.0
+# TinyAGI e' un progetto Node.js — questo file non e' usato.
+# Le dipendenze sono gestite da npm nel Dockerfile.

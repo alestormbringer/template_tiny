@@ -1,16 +1,29 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+FROM node:20-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl build-essential \
+    python3 make g++ git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /build
+RUN git clone --depth=1 https://github.com/TinyAGI/tinyagi.git .
+RUN npm install
+RUN npm run build
+RUN npm prune --omit=dev
 
-COPY . .
+FROM node:20-slim
 
-RUN mkdir -p /app/data /app/logs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git chromium \
+    && rm -rf /var/lib/apt/lists/*
 
-CMD ["python", "-m", "tinyagi"]
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app
+COPY --from=builder /build .
+
+RUN mkdir -p /root/.tinyagi /root/workspace
+
+EXPOSE 3777
+CMD ["sh", "docker-entrypoint.sh"]
