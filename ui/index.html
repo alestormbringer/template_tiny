@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TINYAGI // CONTROL HUB</title>
+    <style>
+        :root {
+            --bg:     #02020a;
+            --bgcard: #05051a;
+            --bgpan:  #03030e;
+            --cyan:   #00ffff;
+            --green:  #00ff88;
+            --orange: #ff6600;
+            --yellow: #ffee00;
+            --text:   #5858a0;
+            --tbr:    #c0c0e8;
+            --bdr:    #0a0a20;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background:var(--bg); color:var(--text);
+            font-family:'Courier New',monospace; font-size:13px;
+            height:100vh; overflow:hidden;
+            display:flex; flex-direction:column;
+            background-image:
+                linear-gradient(rgba(0,255,255,.015) 1px,transparent 1px),
+                linear-gradient(90deg,rgba(0,255,255,.015) 1px,transparent 1px);
+            background-size:40px 40px;
+        }
+
+        /* ─ ANIMATIONS ─ */
+        @keyframes pulse   { 0%,100%{opacity:1}   50%{opacity:.25} }
+        @keyframes flicker { 0%,90%,100%{opacity:1} 92%{opacity:.55} 94%{opacity:.9} 96%{opacity:.5} }
+        @keyframes scan    { 0%{top:-100%} 100%{top:100%} }
+        @keyframes breathe { 0%,100%{transform:scaleY(1) translateY(0)} 50%{transform:scaleY(1.05) translateY(-1px)} }
+        @keyframes patrol  { 0%{left:8%} 100%{left:56%} }
+        @keyframes arm-l   { from{transform:rotate(-40deg)} to{transform:rotate(24deg)} }
+        @keyframes arm-r   { from{transform:rotate(24deg)}  to{transform:rotate(-40deg)} }
+        @keyframes leg-l   { from{transform:rotate(-30deg)} to{transform:rotate(30deg)} }
+        @keyframes leg-r   { from{transform:rotate(30deg)}  to{transform:rotate(-30deg)} }
+        @keyframes bob     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+        @keyframes border-glow { 0%,100%{opacity:.7} 50%{opacity:1} }
+
+        /* ─ HEADER ─ */
+        header {
+            height:58px; flex-shrink:0;
+            background:var(--bgpan);
+            border-bottom:1px solid rgba(0,255,255,.18);
+            display:flex; align-items:center;
+            padding:0 16px; gap:0;
+            box-shadow:0 0 40px rgba(0,255,255,.04);
+        }
+        .logo {
+            font-size:17px; color:var(--cyan);
+            letter-spacing:4px; text-shadow:0 0 14px var(--cyan);
+            margin-right:16px; white-space:nowrap;
+            animation:flicker 10s infinite;
+        }
+        .hdiv { width:1px; height:36px; background:var(--bdr); margin:0 2px; }
+        .hmet {
+            display:flex; flex-direction:column;
+            padding:0 14px; height:100%;
+            justify-content:center; border-right:1px solid var(--bdr);
+        }
+        .hm-l { font-size:9px; opacity:.4; letter-spacing:1px; text-transform:uppercase; }
+        .hm-v { font-size:15px; font-weight:bold; color:var(--cyan); }
+        .hm-v.g { color:var(--green); }
+        .hm-v.o { color:var(--orange); }
+        .hm-v.y { color:var(--yellow); }
+        .hm-v.p { color:#aa44ff; }
+        .pdot {
+            display:inline-block; width:8px; height:8px; border-radius:50%;
+            background:var(--green); box-shadow:0 0 8px var(--green);
+            margin-right:5px; animation:pulse 2s infinite;
+        }
+        /* Commander badge */
+        .cmdr {
+            margin-left:auto;
+            display:flex; align-items:center; gap:10px;
+            padding:7px 14px;
+            border:1px solid rgba(170,68,255,.35);
+            border-radius:5px;
+            background:rgba(170,68,255,.06);
+        }
+        .cmdr-icon { font-size:20px; }
+        .cmdr-txt  { display:flex; flex-direction:column; }
+        .cmdr-lbl  { font-size:9px; color:#aa44ff; letter-spacing:1px; }
+        .cmdr-lv   { font-size:15px; font-weight:bold; color:#aa44ff; text-shadow:0 0 8px #aa44ff; }
+        .xpbar { width:90px; height:4px; background:rgba(170,68,255,.18); border-radius:2px; overflow:hidden; margin-top:2px; }
+        .xpfill{ height:100%; background:#aa44ff; box-shadow:0 0 6px #aa44ff; width:12%; }
+        .xptxt { font-size:9px; color:#aa44ff; opacity:.5; margin-top:2px; }
+        .rtag  { margin-left:12px; font-size:10px; opacity:.28; }
+
+        /* ─ LAYOUT ─ */
+        .layout {
+            display:grid;
+            grid-template-columns:235px 1fr 275px;
+            flex:1; overflow:hidden;
+        }
+
+        /* ─ SIDE PANELS ─ */
+        .sp { background:var(--bgpan); display:flex; flex-direction:column; overflow:hidden; }
+        .sp.l { border-right:1px solid var(--bdr); }
+        .sp.r { border-left:1px solid var(--bdr);  }
+        .phdr {
+            padding:11px 15px; font-size:11px; color:var(--cyan);
+            letter-spacing:2px; border-bottom:1px solid var(--bdr);
+            display:flex; align-items:center; gap:8px; flex-shrink:0;
+        }
+        .bdg {
+            background:rgba(0,255,255,.1); border:1px solid rgba(0,255,255,.2);
+            color:var(--cyan); font-size:10px; padding:1px 7px; border-radius:10px;
+        }
+
+        /* ─ CREW LIST ─ */
+        .clist { flex:1; overflow-y:auto; padding:8px; }
+        .citem {
+            padding:9px 12px; border-radius:5px; cursor:pointer;
+            border:1px solid transparent; margin-bottom:5px; transition:all .15s;
+        }
+        .citem:hover { border-color:rgba(0,255,255,.22); background:rgba(0,255,255,.03); }
+        .ctop { display:flex; align-items:center; gap:9px; margin-bottom:4px; }
+        .cdot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .d-i  { background:var(--cyan);   box-shadow:0 0 5px var(--cyan); }
+        .d-b  { background:var(--orange); box-shadow:0 0 5px var(--orange); animation:pulse .8s infinite; }
+        .cid  { font-size:12px; color:var(--tbr); flex:1; }
+        .clv  { font-size:10px; color:#aa44ff; }
+        .crole{ font-size:10px; opacity:.42; margin-bottom:5px; padding-left:17px; }
+        .axp  { height:3px; background:rgba(0,255,255,.1); border-radius:2px; overflow:hidden; }
+        .axpf { height:100%; background:var(--cyan); box-shadow:0 0 4px var(--cyan); }
+        .addbtn {
+            margin:8px; padding:10px;
+            border:1px dashed rgba(0,255,255,.3);
+            background:transparent; color:var(--cyan);
+            font-family:monospace; font-size:12px;
+            cursor:pointer; border-radius:5px; letter-spacing:1px;
+            transition:all .2s; flex-shrink:0;
+        }
+        .addbtn:hover { background:rgba(0,255,255,.06); box-shadow:0 0 14px rgba(0,255,255,.12); }
+
+        /* ─ CENTER ─ */
+        .cpan {
+            overflow-y:auto;
+            display:flex; align-items:center; justify-content:center;
+            padding:20px 14px;
+            background:var(--bg);
+        }
+        .rwrap {
+            display:flex; flex-wrap:wrap;
+            justify-content:center; align-content:center;
+            gap:18px; width:100%;
+        }
+
+        /* ─ ROOM CARD ─ */
+        .rcard {
+            width:265px;
+            background:var(--bgcard);
+            border-radius:6px;
+            overflow:visible;
+            border:2px solid var(--glow);
+            box-shadow:
+                0 0 14px rgba(var(--gr),.35),
+                0 0 35px rgba(var(--gr),.12),
+                inset 0 0 22px rgba(var(--gr),.04);
+            transition:transform .2s, box-shadow .2s;
+            cursor:pointer;
+            position:relative;
+            animation:border-glow 4s ease-in-out infinite;
+        }
+        .rcard:hover {
+            transform:translateY(-5px) scale(1.02);
+            box-shadow:
+                0 0 22px rgba(var(--gr),.6),
+                0 0 55px rgba(var(--gr),.22),
+                inset 0 0 30px rgba(var(--gr),.07);
+        }
+        /* Corner brackets */
+        .co { position:absolute; width:14px; height:14px; border-color:var(--glow); border-style:solid; z-index:5; }
+        .co.tl { top:-2px;    left:-2px;  border-width:2px 0 0 2px; }
+        .co.tr { top:-2px;    right:-2px; border-width:2px 2px 0 0; }
+        .co.bl { bottom:-2px; left:-2px;  border-width:0 0 2px 2px; }
+        .co.br { bottom:-2px; right:-2px; border-width:0 2px 2px 0; }
+
+        .rchdr {
+            padding:9px 13px;
+            display:flex; justify-content:space-between; align-items:center;
+            border-bottom:1px solid rgba(var(--gr),.15);
+            background:rgba(var(--gr),.04);
+        }
+        .rlbl { font-size:11px; color:var(--glow); letter-spacing:1px; text-shadow:0 0 7px var(--glow); }
+        .rst  { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--glow); }
+        .rring {
+            width:8px; height:8px; border-radius:50%;
+            border:2px solid var(--glow); box-shadow:0 0 5px var(--glow);
+        }
+        .rring.busy { animation:pulse .8s infinite; }
+
+        /* Interior */
+        .rint {
+            height:170px; position:relative; overflow:hidden;
+            background:var(--rbg);
+        }
+        /* Scan on busy */
+        .rcard.busy .rint::after {
+            content:''; position:absolute; top:-100%; left:0; right:0; height:100%;
+            background:linear-gradient(transparent 50%, rgba(255,102,0,.022) 50%);
+            background-size:100% 4px;
+            animation:scan 5s linear infinite; pointer-events:none;
+        }
+        /* Back wall */
+        .rwall {
+            position:absolute; top:0; left:0; right:0; height:42%;
+            background:linear-gradient(to bottom, rgba(0,0,0,.5), transparent);
+            border-bottom:1px solid rgba(var(--gr),.08);
+        }
+        /* Perspective floor */
+        .rfloor {
+            position:absolute; bottom:0; left:-35%; right:-35%; height:58%;
+            background-image:
+                linear-gradient(rgba(var(--gr),.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(var(--gr),.07) 1px, transparent 1px);
+            background-size:22px 22px;
+            transform:perspective(110px) rotateX(54deg);
+            transform-origin:bottom center;
+            border-top:1px solid rgba(var(--gr),.22);
+        }
+
+        /* ─ HUMANOID ─ */
+        .hum {
+            position:absolute; bottom:12px;
+            display:flex; flex-direction:column; align-items:center;
+            width:22px; z-index:3;
+            filter:drop-shadow(0 0 5px var(--glow));
+        }
+        .hum.idle    { left:38%; animation:breathe 3.5s ease-in-out infinite; }
+        .hum.walking { animation:patrol 3.2s ease-in-out infinite alternate; }
+        .hum.walking .hhd  { animation:bob .35s ease-in-out infinite alternate; }
+        .hum.walking .hto::before { animation:arm-l .35s ease-in-out infinite alternate; }
+        .hum.walking .hto::after  { animation:arm-r .35s ease-in-out infinite alternate; }
+        .hum.walking .hll  { animation:leg-l .35s ease-in-out infinite alternate; }
+        .hum.walking .hlr  { animation:leg-r .35s ease-in-out infinite alternate; }
+
+        .hhd {
+            width:12px; height:12px; border-radius:50%;
+            background:var(--glow); box-shadow:0 0 7px var(--glow), 0 0 16px var(--glow);
+            margin-bottom:2px; flex-shrink:0;
+        }
+        .hto {
+            width:10px; height:14px; background:var(--glow);
+            opacity:.88; border-radius:2px; position:relative;
+            margin-bottom:2px; flex-shrink:0;
+        }
+        .hto::before,.hto::after {
+            content:''; position:absolute;
+            width:4px; height:11px; background:var(--glow);
+            opacity:.82; border-radius:2px; top:1px;
+            transform-origin:top center;
+        }
+        .hto::before { left:-5px; }
+        .hto::after  { right:-5px; }
+        .hlgs { display:flex; gap:2px; }
+        .hll,.hlr {
+            width:4px; height:11px; background:var(--glow);
+            opacity:.82; border-radius:2px; transform-origin:top center;
+        }
+
+        /* Card footer */
+        .rfoot { padding:10px 13px; border-top:1px solid rgba(var(--gr),.12); }
+        .rfn   { font-size:14px; color:var(--tbr); font-weight:bold; margin-bottom:1px; }
+        .rfr   { font-size:10px; opacity:.38; margin-bottom:6px; }
+        .rfl   {
+            font-size:10px; color:var(--text); line-height:1.7;
+            background:rgba(0,0,0,.32); border-left:2px solid rgba(var(--gr),.18);
+            padding:4px 7px; border-radius:2px;
+        }
+        .rfl.live { border-color:var(--orange); color:var(--orange); }
+
+        /* Room themes */
+        .t-tinyagi  { --glow:#aa44ff; --gr:170,68,255;  --rbg:radial-gradient(ellipse at 50% 100%,#16003a 0%,#07001e 100%); }
+        .t-analyst  { --glow:#0088ff; --gr:0,136,255;   --rbg:radial-gradient(ellipse at 50% 100%,#001738 0%,#000d20 100%); }
+        .t-notion   { --glow:#00ffaa; --gr:0,255,170;   --rbg:radial-gradient(ellipse at 50% 100%,#002818 0%,#001610 100%); }
+        .t-finance  { --glow:#ffaa00; --gr:255,170,0;   --rbg:radial-gradient(ellipse at 50% 100%,#261500 0%,#140a00 100%); }
+        .t-business { --glow:#8899ee; --gr:136,153,238; --rbg:radial-gradient(ellipse at 50% 100%,#12142e 0%,#08091e 100%); }
+        .t-copy     { --glow:#ff44cc; --gr:255,68,204;  --rbg:radial-gradient(ellipse at 50% 100%,#26001c 0%,#15000e 100%); }
+        .t-publish  { --glow:#ff6600; --gr:255,102,0;   --rbg:radial-gradient(ellipse at 50% 100%,#261200 0%,#140700 100%); }
+        .t-analytics{ --glow:#00e5ff; --gr:0,229,255;   --rbg:radial-gradient(ellipse at 50% 100%,#001e26 0%,#000f15 100%); }
+
+        /* ─ MISSIONS PANEL ─ */
+        .mlist { flex:1; overflow-y:auto; padding:10px; }
+        .mitem {
+            padding:10px 12px; border:1px solid var(--bdr);
+            border-radius:5px; margin-bottom:8px;
+        }
+        .mitem.active { border-color:rgba(255,238,0,.2); background:rgba(255,238,0,.025); }
+        .mtop  { display:flex; gap:8px; align-items:center; margin-bottom:7px; }
+        .mico  { font-size:16px; }
+        .mtitle{ font-size:12px; color:var(--tbr); flex:1; }
+        .mxp   { font-size:10px; color:var(--yellow); }
+        .mbar  { height:5px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; margin-bottom:4px; }
+        .mfill { height:100%; border-radius:3px; }
+        .mnums { font-size:10px; opacity:.4; display:flex; justify-content:space-between; }
+
+        .achieve {
+            margin:10px; padding:11px 13px;
+            border:1px solid rgba(255,238,0,.18);
+            border-radius:5px; background:rgba(255,238,0,.025);
+            flex-shrink:0;
+        }
+        .ach-lbl  { font-size:9px; color:var(--yellow); letter-spacing:1px; margin-bottom:5px; }
+        .ach-name { font-size:13px; color:var(--tbr); font-weight:bold; }
+        .ach-desc { font-size:10px; opacity:.38; margin-top:2px; }
+
+        /* ─ BOTTOM NAV ─ */
+        .bnav {
+            height:46px; flex-shrink:0;
+            background:var(--bgpan);
+            border-top:1px solid var(--bdr);
+            display:flex; align-items:center; justify-content:center; gap:4px;
+        }
+        .nbtn {
+            padding:7px 18px; border:1px solid transparent;
+            background:transparent; color:var(--text);
+            font-family:monospace; font-size:11px;
+            cursor:pointer; border-radius:4px; letter-spacing:1px;
+            transition:all .15s;
+        }
+        .nbtn:hover, .nbtn.on {
+            border-color:rgba(0,255,255,.28);
+            background:rgba(0,255,255,.05);
+            color:var(--cyan);
+        }
+
+        ::-webkit-scrollbar { width:3px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:var(--bdr); border-radius:2px; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+    <div class="logo">◈ TINYAGI</div>
+    <div class="hmet" style="border-left:1px solid var(--bdr)">
+        <span class="hm-l">Ship Time</span>
+        <span class="hm-v" id="hday" style="font-size:13px">DAY 1 — 00:00:00</span>
+    </div>
+    <div class="hmet">
+        <span class="hm-l">Revenue</span>
+        <span class="hm-v g">$0.00</span>
+    </div>
+    <div class="hmet">
+        <span class="hm-l">Orders</span>
+        <span class="hm-v">0</span>
+    </div>
+    <div class="hmet">
+        <span class="hm-l">Products</span>
+        <span class="hm-v o">0 LIVE</span>
+    </div>
+    <div class="hmet">
+        <span class="hm-l">Agents</span>
+        <span class="hm-v y" id="hdr-ag">—</span>
+    </div>
+    <div class="hmet">
+        <span class="hm-l">Status</span>
+        <span class="hm-v"><span class="pdot"></span>ONLINE</span>
+    </div>
+    <div class="cmdr">
+        <span class="cmdr-icon">⚔</span>
+        <div class="cmdr-txt">
+            <span class="cmdr-lbl">COMMANDER</span>
+            <span class="cmdr-lv">LV.1</span>
+        </div>
+        <div style="display:flex;flex-direction:column">
+            <div class="xpbar"><div class="xpfill"></div></div>
+            <span class="xptxt">120 / 1000 XP</span>
+        </div>
+    </div>
+    <div class="rtag" id="rtag">↻ 5s</div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+    <!-- LEFT: CREW -->
+    <div class="sp l">
+        <div class="phdr">⚔ CREW <span class="bdg" id="badge">0</span></div>
+        <div class="clist" id="clist"></div>
+        <button class="addbtn" onclick="showHelp()">+ RECRUIT AGENT</button>
+    </div>
+
+    <!-- CENTER: ROOMS -->
+    <div class="cpan">
+        <div class="rwrap" id="rwrap"></div>
+    </div>
+
+    <!-- RIGHT: MISSIONS -->
+    <div class="sp r">
+        <div class="phdr">◎ ACTIVE MISSIONS</div>
+        <div class="mlist">
+
+            <div class="mitem active">
+                <div class="mtop">
+                    <span class="mico">💰</span>
+                    <span class="mtitle">Reach $500 in Revenue</span>
+                    <span class="mxp">+500 XP</span>
+                </div>
+                <div class="mbar"><div class="mfill" style="width:0%;background:#00ff88;box-shadow:0 0 4px #00ff88"></div></div>
+                <div class="mnums"><span>$0 / $500</span><span>0%</span></div>
+            </div>
+
+            <div class="mitem active">
+                <div class="mtop">
+                    <span class="mico">📦</span>
+                    <span class="mtitle">Publish 5 Products</span>
+                    <span class="mxp">+300 XP</span>
+                </div>
+                <div class="mbar"><div class="mfill" style="width:0%;background:#0088ff;box-shadow:0 0 4px #0088ff"></div></div>
+                <div class="mnums"><span>0 / 5</span><span>0%</span></div>
+            </div>
+
+            <div class="mitem active">
+                <div class="mtop">
+                    <span class="mico">🛒</span>
+                    <span class="mtitle">Get First Sale</span>
+                    <span class="mxp">+200 XP</span>
+                </div>
+                <div class="mbar"><div class="mfill" style="width:0%;background:#ff6600;box-shadow:0 0 4px #ff6600"></div></div>
+                <div class="mnums"><span>0 / 1</span><span>0%</span></div>
+            </div>
+
+            <div class="mitem active">
+                <div class="mtop">
+                    <span class="mico">🤖</span>
+                    <span class="mtitle">Recruit Full Crew (8 agents)</span>
+                    <span class="mxp">+400 XP</span>
+                </div>
+                <div class="mbar">
+                    <div class="mfill" id="crew-fill" style="width:0%;background:#aa44ff;box-shadow:0 0 4px #aa44ff"></div>
+                </div>
+                <div class="mnums">
+                    <span id="crew-nums">0 / 8</span>
+                    <span id="crew-pct">0%</span>
+                </div>
+            </div>
+
+        </div>
+        <div class="achieve">
+            <div class="ach-lbl">◈ LATEST ACHIEVEMENT</div>
+            <div class="ach-name">System Online</div>
+            <div class="ach-desc">TinyAGI hub successfully deployed on OVHcloud VPS</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+    <button class="nbtn on">◈ HUB</button>
+    <button class="nbtn">◎ STATS</button>
+    <button class="nbtn">⚔ CREW</button>
+    <button class="nbtn">◎ MISSIONS</button>
+    <button class="nbtn">▲ PUBLISH</button>
+    <button class="nbtn">◐ ANALYTICS</button>
+    <button class="nbtn">⚙ SETTINGS</button>
+</div>
+
+<script>
+const API = `${location.protocol}//${location.hostname}:8090`;
+
+const META = {
+    'tinyagi':          { role:'Orchestratore',        icon:'◈', th:'tinyagi',   xp:320 },
+    'market-analyst':   { role:'Market Analysis',      icon:'◎', th:'analyst',   xp:150 },
+    'notion-creator':   { role:'Notion Templates',     icon:'▣', th:'notion',    xp:80  },
+    'finance-creator':  { role:'Finance / Excel',      icon:'◆', th:'finance',   xp:60  },
+    'business-creator': { role:'Business / Freelance', icon:'◉', th:'business',  xp:40  },
+    'template-creator': { role:'Template Creator',     icon:'▣', th:'notion',    xp:40  },
+    'copywriter':       { role:'SEO Copywriting',      icon:'◌', th:'copy',      xp:90  },
+    'publisher':        { role:'Gumroad Publisher',    icon:'▲', th:'publish',   xp:120 },
+    'analytics':        { role:'Sales Analytics',      icon:'◐', th:'analytics', xp:200 },
+};
+
+const GLOWH = {
+    tinyagi:'#aa44ff', analyst:'#0088ff', notion:'#00ffaa',
+    finance:'#ffaa00', business:'#8899ee', copy:'#ff44cc',
+    publish:'#ff6600', analytics:'#00e5ff',
+};
+
+const DECO = {
+    tinyagi: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <circle cx="132" cy="60" r="44" stroke="rgba(170,68,255,.12)" stroke-width="1" fill="none"/>
+        <circle cx="132" cy="60" r="28" stroke="rgba(170,68,255,.09)" stroke-width="1" fill="none"/>
+        <circle cx="132" cy="60" r="12" stroke="rgba(170,68,255,.2)"  stroke-width="1" fill="none"/>
+        <line x1="88"  y1="60" x2="176" y2="60" stroke="rgba(170,68,255,.07)" stroke-width="1"/>
+        <line x1="132" y1="16" x2="132" y2="104" stroke="rgba(170,68,255,.07)" stroke-width="1"/>
+        <circle cx="132" cy="60" r="3.5" fill="rgba(170,68,255,.7)"/>
+        <circle cx="132" cy="60" r="3" fill="none" stroke="rgba(170,68,255,.35)" stroke-width="1">
+            <animate attributeName="r" from="5" to="28" dur="2.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from=".5" to="0" dur="2.5s" repeatCount="indefinite"/>
+        </circle>
+    </svg>`,
+
+    analyst: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <polyline points="12,142 44,106 72,120 100,76 130,92 160,50 190,66 250,24"
+            stroke="rgba(0,136,255,.32)" stroke-width="1.5" fill="none" stroke-dasharray="5 2">
+            <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.8s" repeatCount="indefinite"/>
+        </polyline>
+        <circle cx="100" cy="76" r="3.5" fill="rgba(0,136,255,.65)"/>
+        <circle cx="160" cy="50" r="3.5" fill="rgba(0,136,255,.65)"/>
+        <line x1="12"  y1="147" x2="250" y2="147" stroke="rgba(0,136,255,.1)"  stroke-width="1"/>
+        <line x1="12"  y1="20"  x2="12"  y2="147" stroke="rgba(0,136,255,.1)"  stroke-width="1"/>
+        <rect x="200" y="20" width="24" height="38" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.16)" stroke-width="1"/>
+        <rect x="228" y="36" width="24" height="22" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.16)" stroke-width="1"/>
+    </svg>`,
+
+    notion: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <rect x="22" y="14" width="78" height="100" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.18)" stroke-width="1"/>
+        <line x1="34" y1="32" x2="88" y2="32" stroke="rgba(0,255,170,.3)"  stroke-width="1.5"/>
+        <line x1="34" y1="47" x2="84" y2="47" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+        <line x1="34" y1="60" x2="80" y2="60" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+        <line x1="34" y1="73" x2="86" y2="73" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+        <line x1="34" y1="86" x2="76" y2="86" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+        <rect x="128" y="28" width="78" height="72" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+        <line x1="140" y1="46" x2="194" y2="46" stroke="rgba(0,255,170,.2)"  stroke-width="1"/>
+        <line x1="140" y1="60" x2="188" y2="60" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
+        <line x1="140" y1="74" x2="191" y2="74" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
+    </svg>`,
+
+    finance: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <polyline points="12,135 48,102 82,118 116,72 150,88 184,46 218,62"
+            stroke="rgba(255,170,0,.3)" stroke-width="1.5" fill="none"/>
+        <polyline points="12,150 48,128 82,140 116,96 150,112 184,72 218,84"
+            stroke="rgba(255,170,0,.1)" stroke-width="1" fill="none"/>
+        <text x="116" y="30" font-family="monospace" font-size="26" fill="rgba(255,170,0,.07)">$</text>
+        <text x="190" y="56" font-family="monospace" font-size="17" fill="rgba(255,170,0,.06)">$</text>
+        <text x="32"  y="88" font-family="monospace" font-size="15" fill="rgba(255,170,0,.06)">%</text>
+        <line x1="12" y1="154" x2="252" y2="154" stroke="rgba(255,170,0,.12)" stroke-width="1"/>
+    </svg>`,
+
+    business: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <rect x="18" y="104" width="230" height="6" rx="1" fill="rgba(136,153,238,.2)"/>
+        <rect x="38"  y="68" width="40" height="36" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
+        <rect x="95"  y="52" width="40" height="52" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
+        <rect x="152" y="74" width="40" height="30" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
+        <rect x="14"  y="18" width="60" height="42" rx="2" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+        <line x1="24" y1="30" x2="64" y2="30" stroke="rgba(136,153,238,.22)" stroke-width="1"/>
+        <line x1="24" y1="42" x2="60" y2="42" stroke="rgba(136,153,238,.08)" stroke-width="1"/>
+    </svg>`,
+
+    copy: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <text x="14" y="30" font-family="monospace" font-size="10" fill="rgba(255,68,204,.22)" letter-spacing="2">SEO TITLE</text>
+        <line x1="14" y1="40"  x2="175" y2="40"  stroke="rgba(255,68,204,.24)" stroke-width="1.5"/>
+        <line x1="14" y1="62"  x2="145" y2="62"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+        <line x1="14" y1="76"  x2="154" y2="76"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+        <line x1="14" y1="90"  x2="132" y2="90"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+        <line x1="14" y1="104" x2="148" y2="104" stroke="rgba(255,68,204,.09)" stroke-width="1"/>
+        <text x="184" y="30" font-family="monospace" font-size="9" fill="rgba(255,68,204,.18)">TAGS</text>
+        <rect x="184" y="38" width="68" height="64" rx="2" fill="none" stroke="rgba(255,68,204,.1)" stroke-width="1"/>
+        <text x="190" y="56" font-family="monospace" font-size="8" fill="rgba(255,68,204,.14)">#notion</text>
+        <text x="190" y="70" font-family="monospace" font-size="8" fill="rgba(255,68,204,.1)">#template</text>
+        <text x="190" y="84" font-family="monospace" font-size="8" fill="rgba(255,68,204,.1)">#digital</text>
+    </svg>`,
+
+    publish: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <circle cx="132" cy="55" r="7" fill="rgba(255,102,0,.55)"/>
+        <circle cx="132" cy="55" r="7" fill="none" stroke="rgba(255,102,0,.4)" stroke-width="1">
+            <animate attributeName="r" from="12" to="58" dur="2.2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from=".55" to="0" dur="2.2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="132" cy="55" r="7" fill="none" stroke="rgba(255,102,0,.25)" stroke-width="1">
+            <animate attributeName="r" from="12" to="72" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from=".3" to="0" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
+        </circle>
+        <line x1="12" y1="148" x2="252" y2="148" stroke="rgba(255,102,0,.1)" stroke-width="1"/>
+        <text x="106" y="116" font-family="monospace" font-size="10" fill="rgba(255,102,0,.24)" letter-spacing="3">LIVE</text>
+    </svg>`,
+
+    analytics: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
+        <rect x="14"  y="90"  width="28" height="64" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+        <rect x="52"  y="62"  width="28" height="92" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+        <rect x="90"  y="74"  width="28" height="80" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+        <rect x="128" y="42"  width="28" height="112" rx="1" fill="rgba(0,229,255,.22)" stroke="rgba(0,229,255,.3)"  stroke-width="1"/>
+        <rect x="166" y="64"  width="28" height="90" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+        <rect x="204" y="82"  width="28" height="72" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+        <line x1="8" y1="154" x2="256" y2="154" stroke="rgba(0,229,255,.16)" stroke-width="1"/>
+    </svg>`,
+};
+
+function buildRoom(id, ag, status) {
+    const m  = META[id] || { role:ag.name||id, icon:'◈', th:'analyst', xp:0 };
+    const th = m.th;
+    const gh = GLOWH[th] || '#00ffff';
+    const walk = status === 'busy';
+    const deco = DECO[th] || '';
+    return `
+    <div class="rcard t-${th}" id="room-${id}" onclick="scrollToRoom('${id}')">
+        <div class="co tl"></div><div class="co tr"></div>
+        <div class="co bl"></div><div class="co br"></div>
+        <div class="rchdr">
+            <span class="rlbl">${m.icon} ${id.toUpperCase()}</span>
+            <div class="rst">
+                <div class="rring ${walk?'busy':''}"></div>
+                <span>${walk?'BUSY':'IDLE'}</span>
+            </div>
+        </div>
+        <div class="rint">
+            ${deco}
+            <div class="rwall"></div>
+            <div class="rfloor"></div>
+            <div class="hum ${walk?'walking':'idle'}" style="--glow:${gh}">
+                <div class="hhd"></div>
+                <div class="hto"></div>
+                <div class="hlgs"><div class="hll"></div><div class="hlr"></div></div>
+            </div>
+        </div>
+        <div class="rfoot">
+            <div class="rfn">${ag.name||id}</div>
+            <div class="rfr">${m.role}</div>
+            <div class="rfl ${walk?'live':''}">${walk?'▶ task in corso..':'— standby —'}</div>
+        </div>
+    </div>`;
+}
+
+function renderCrew(agents) {
+    const entries = Object.entries(agents);
+    const n = entries.length;
+    document.getElementById('badge').textContent = n;
+    document.getElementById('hdr-ag').textContent = `${n}/8 ACTIVE`;
+    const pct = Math.min(100, Math.round(n/8*100));
+    document.getElementById('crew-fill').style.width = pct+'%';
+    document.getElementById('crew-nums').textContent  = `${n} / 8`;
+    document.getElementById('crew-pct').textContent   = pct+'%';
+    document.getElementById('clist').innerHTML = entries.map(([id, ag]) => {
+        const m   = META[id] || { role:ag.name||id, icon:'◈', xp:0 };
+        const lv  = Math.floor(m.xp/100)+1;
+        const pct = Math.min(100, Math.round(m.xp/500*100));
+        return `<div class="citem" onclick="scrollToRoom('${id}')">
+            <div class="ctop">
+                <div class="cdot d-i"></div>
+                <span class="cid">${id}</span>
+                <span class="clv">LV.${lv}</span>
+            </div>
+            <div class="crole">${m.role}</div>
+            <div class="axp"><div class="axpf" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+}
+
+function renderRooms(agents) {
+    document.getElementById('rwrap').innerHTML =
+        Object.entries(agents).map(([id,ag]) => buildRoom(id, ag, 'idle')).join('');
+}
+
+function scrollToRoom(id) {
+    document.getElementById('room-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function showHelp() {
+    alert('Apri il terminale SSH e lancia:\n\ndocker exec -it tinyagi npx tinyagi agent add');
+}
+
+/* Clock */
+const T0 = Date.now();
+function tick() {
+    const s = Math.floor((Date.now()-T0)/1000);
+    const d = Math.floor(s/86400)+1;
+    const h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), ss = s%60;
+    document.getElementById('hday').textContent =
+        `DAY ${d} — ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')} EST`;
+}
+setInterval(tick, 1000);
+
+/* Nav tabs */
+document.querySelectorAll('.nbtn').forEach(b => {
+    b.addEventListener('click', function() {
+        document.querySelectorAll('.nbtn').forEach(x=>x.classList.remove('on'));
+        this.classList.add('on');
+    });
+});
+
+/* API refresh */
+async function fetchAgents() {
+    const r = await fetch(`${API}/api/agents`); const d = await r.json();
+    renderCrew(d); renderRooms(d);
+}
+async function fetchStatus() {
+    await fetch(`${API}/api/status`);
+}
+
+let cd = 5;
+async function refresh() {
+    try { await Promise.all([fetchAgents(), fetchStatus()]); } catch(e){}
+    cd = 5;
+}
+setInterval(()=>{ cd--; document.getElementById('rtag').textContent=`↻ ${cd}s`; if(cd<=0) refresh(); }, 1000);
+refresh();
+</script>
+</body>
+</html>

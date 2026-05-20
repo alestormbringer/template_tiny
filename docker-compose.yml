@@ -1,6 +1,15 @@
 version: "3.9"
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - tinyagi-net
+
   tinyagi:
     build:
       context: .
@@ -10,14 +19,33 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config:/app/config
+      - ./config:/root/.tinyagi
+      - tinyagi-data:/root/workspace
     ports:
-      - "${TINYAGI_PORT:-8090}:8090"
+      - "${TINYAGI_PORT:-8090}:3777"
     networks:
       - tinyagi-net
+    depends_on:
+      - ollama
+
+  dashboard:
+    image: nginx:alpine
+    container_name: tinyagi-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui:/usr/share/nginx/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - tinyagi-net
+    depends_on:
+      - tinyagi
 
 networks:
   tinyagi-net:
     driver: bridge
+
+volumes:
+  ollama-data:
+  tinyagi-data:
