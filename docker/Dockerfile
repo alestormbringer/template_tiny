@@ -23,7 +23,10 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=builder /build .
 
-RUN mkdir -p /root/.tinyagi /root/workspace
+# Install OpenAI Codex CLI (open source, funziona con Ollama locale)
+RUN npm install -g @openai/codex
+
+RUN mkdir -p /root/.tinyagi /root/workspace /root/.codex
 
 EXPOSE 3777
 CMD ["sh", "docker-entrypoint.sh"]
