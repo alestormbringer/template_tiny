@@ -28,6 +28,17 @@ services:
     depends_on:
       - ollama
 
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+    volumes:
+      - ./searxng:/etc/searxng
+    networks:
+      - tinyagi-net
+
   dashboard:
     image: nginx:alpine
     container_name: tinyagi-dashboard
@@ -41,6 +52,7 @@ services:
       - tinyagi-net
     depends_on:
       - tinyagi
+      - searxng
 
 networks:
   tinyagi-net:

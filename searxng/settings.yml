@@ -1,0 +1,30 @@
+use_default_settings: true
+
+general:
+  instance_name: "TinyAGI Search"
+  debug: false
+
+search:
+  safe_search: 0
+  default_lang: "it"
+  languages:
+    - "it"
+    - "en"
+
+server:
+  secret_key: "tinyagi-searxng-secret"
+  bind_address: "0.0.0.0"
+  port: 8080
+  public_instance: false
+
+ui:
+  default_theme: simple
+
+engines:
+  - name: google
+    engine: google
+    use_mobile_ui: false
+  - name: duckduckgo
+    engine: duckduckgo
+  - name: bing
+    engine: bing

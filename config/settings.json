@@ -81,6 +81,11 @@
     "notion": {
       "api_base": "https://api.notion.com/v1",
       "api_key_env": "NOTION_API_KEY"
+    },
+    "search": {
+      "provider": "searxng",
+      "base_url_env": "SEARXNG_BASE_URL",
+      "base_url_default": "http://searxng:8080"
     }
   },
   "monitoring": {
