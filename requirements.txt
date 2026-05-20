@@ -1,2 +1,2 @@
-tinyagi>=0.1.0
+git+https://github.com/TinyAGI/tinyagi.git
 python-dotenv>=1.0.0
