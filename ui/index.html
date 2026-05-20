@@ -30,17 +30,20 @@
         }
 
         /* ─ ANIMATIONS ─ */
-        @keyframes pulse   { 0%,100%{opacity:1}   50%{opacity:.25} }
-        @keyframes flicker { 0%,90%,100%{opacity:1} 92%{opacity:.55} 94%{opacity:.9} 96%{opacity:.5} }
-        @keyframes scan    { 0%{top:-100%} 100%{top:100%} }
-        @keyframes breathe { 0%,100%{transform:scaleY(1) translateY(0)} 50%{transform:scaleY(1.05) translateY(-1px)} }
-        @keyframes patrol  { 0%{left:8%} 100%{left:56%} }
-        @keyframes arm-l   { from{transform:rotate(-40deg)} to{transform:rotate(24deg)} }
-        @keyframes arm-r   { from{transform:rotate(24deg)}  to{transform:rotate(-40deg)} }
-        @keyframes leg-l   { from{transform:rotate(-30deg)} to{transform:rotate(30deg)} }
-        @keyframes leg-r   { from{transform:rotate(30deg)}  to{transform:rotate(-30deg)} }
-        @keyframes bob     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
-        @keyframes border-glow { 0%,100%{opacity:.7} 50%{opacity:1} }
+        @keyframes pulse        { 0%,100%{opacity:1}   50%{opacity:.25} }
+        @keyframes flicker      { 0%,90%,100%{opacity:1} 92%{opacity:.55} 94%{opacity:.9} 96%{opacity:.5} }
+        @keyframes scan         { 0%{top:-100%} 100%{top:100%} }
+        @keyframes breathe      { 0%,100%{transform:scaleY(1) translateY(0)} 50%{transform:scaleY(1.05) translateY(-1px)} }
+        @keyframes patrol       { 0%{left:8%} 100%{left:56%} }
+        @keyframes arm-l        { from{transform:rotate(-40deg)} to{transform:rotate(24deg)} }
+        @keyframes arm-r        { from{transform:rotate(24deg)}  to{transform:rotate(-40deg)} }
+        @keyframes leg-l        { from{transform:rotate(-30deg)} to{transform:rotate(30deg)} }
+        @keyframes leg-r        { from{transform:rotate(30deg)}  to{transform:rotate(-30deg)} }
+        @keyframes bob          { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+        @keyframes border-glow  { 0%,100%{opacity:.7} 50%{opacity:1} }
+        @keyframes cursor-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+        @keyframes bar-grow     { from{transform:scaleY(0)} to{transform:scaleY(1)} }
+        @keyframes ticker-move  { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 
         /* ─ HEADER ─ */
         header {
@@ -154,7 +157,7 @@
 
         /* ─ ROOM CARD ─ */
         .rcard {
-            width:265px;
+            width:270px;
             background:var(--bgcard);
             border-radius:6px;
             overflow:visible;
@@ -198,42 +201,47 @@
 
         /* Interior */
         .rint {
-            height:170px; position:relative; overflow:hidden;
+            height:190px; position:relative; overflow:hidden;
             background:var(--rbg);
         }
-        /* Scan on busy */
+        /* Scan line on busy */
         .rcard.busy .rint::after {
             content:''; position:absolute; top:-100%; left:0; right:0; height:100%;
             background:linear-gradient(transparent 50%, rgba(255,102,0,.022) 50%);
             background-size:100% 4px;
             animation:scan 5s linear infinite; pointer-events:none;
         }
+        /* CRT scanlines overlay */
+        .rint::before {
+            content:''; position:absolute; inset:0; z-index:10; pointer-events:none;
+            background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px);
+        }
         /* Back wall */
         .rwall {
             position:absolute; top:0; left:0; right:0; height:42%;
-            background:linear-gradient(to bottom, rgba(0,0,0,.5), transparent);
+            background:linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
             border-bottom:1px solid rgba(var(--gr),.08);
         }
         /* Perspective floor */
         .rfloor {
             position:absolute; bottom:0; left:-35%; right:-35%; height:58%;
             background-image:
-                linear-gradient(rgba(var(--gr),.07) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(var(--gr),.07) 1px, transparent 1px);
+                linear-gradient(rgba(var(--gr),.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(var(--gr),.08) 1px, transparent 1px);
             background-size:22px 22px;
             transform:perspective(110px) rotateX(54deg);
             transform-origin:bottom center;
-            border-top:1px solid rgba(var(--gr),.22);
+            border-top:1px solid rgba(var(--gr),.25);
         }
 
         /* ─ HUMANOID ─ */
         .hum {
-            position:absolute; bottom:12px;
+            position:absolute; bottom:14px;
             display:flex; flex-direction:column; align-items:center;
             width:22px; z-index:3;
             filter:drop-shadow(0 0 5px var(--glow));
         }
-        .hum.idle    { left:38%; animation:breathe 3.5s ease-in-out infinite; }
+        .hum.idle    { left:36%; animation:breathe 3.5s ease-in-out infinite; }
         .hum.walking { animation:patrol 3.2s ease-in-out infinite alternate; }
         .hum.walking .hhd  { animation:bob .35s ease-in-out infinite alternate; }
         .hum.walking .hto::before { animation:arm-l .35s ease-in-out infinite alternate; }
@@ -466,18 +474,20 @@
 </div>
 
 <script>
-const API = `${location.protocol}//${location.hostname}:8090`;
+/* Use relative path — nginx proxies /agents/ to the Python service */
+const AGENTS_API = '/agents';
 
+/* Static metadata: theme, icon, role label */
 const META = {
-    'tinyagi':          { role:'Orchestratore',        icon:'◈', th:'tinyagi',   xp:320 },
-    'market-analyst':   { role:'Market Analysis',      icon:'◎', th:'analyst',   xp:150 },
-    'notion-creator':   { role:'Notion Templates',     icon:'▣', th:'notion',    xp:80  },
-    'finance-creator':  { role:'Finance / Excel',      icon:'◆', th:'finance',   xp:60  },
-    'business-creator': { role:'Business / Freelance', icon:'◉', th:'business',  xp:40  },
-    'template-creator': { role:'Template Creator',     icon:'▣', th:'notion',    xp:40  },
-    'copywriter':       { role:'SEO Copywriting',      icon:'◌', th:'copy',      xp:90  },
-    'publisher':        { role:'Gumroad Publisher',    icon:'▲', th:'publish',   xp:120 },
-    'analytics':        { role:'Sales Analytics',      icon:'◐', th:'analytics', xp:200 },
+    'tinyagi':          { role:'Orchestratore',        icon:'◈', th:'tinyagi'   },
+    'market-analyst':   { role:'Market Analysis',      icon:'◎', th:'analyst'   },
+    'analytics':        { role:'Sales Analytics',      icon:'◐', th:'analytics' },
+    'publisher':        { role:'Gumroad Publisher',    icon:'▲', th:'publish'   },
+    'finance-creator':  { role:'Finance / Excel',      icon:'◆', th:'finance'   },
+    'copywriter':       { role:'SEO Copywriting',      icon:'◌', th:'copy'      },
+    'business-creator': { role:'Business / Freelance', icon:'◉', th:'business'  },
+    'notion-creator':   { role:'Notion Templates',     icon:'▣', th:'notion'    },
+    'template-creator': { role:'Template Creator',     icon:'▣', th:'notion'    },
 };
 
 const GLOWH = {
@@ -486,112 +496,499 @@ const GLOWH = {
     publish:'#ff6600', analytics:'#00e5ff',
 };
 
+/* ─────────────────────────────────────────────
+   ROOM DECORATIONS — rich SVG per agent type
+   viewBox 0 0 270 190 matches card 270×190
+───────────────────────────────────────────── */
 const DECO = {
-    tinyagi: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <circle cx="132" cy="60" r="44" stroke="rgba(170,68,255,.12)" stroke-width="1" fill="none"/>
-        <circle cx="132" cy="60" r="28" stroke="rgba(170,68,255,.09)" stroke-width="1" fill="none"/>
-        <circle cx="132" cy="60" r="12" stroke="rgba(170,68,255,.2)"  stroke-width="1" fill="none"/>
-        <line x1="88"  y1="60" x2="176" y2="60" stroke="rgba(170,68,255,.07)" stroke-width="1"/>
-        <line x1="132" y1="16" x2="132" y2="104" stroke="rgba(170,68,255,.07)" stroke-width="1"/>
-        <circle cx="132" cy="60" r="3.5" fill="rgba(170,68,255,.7)"/>
-        <circle cx="132" cy="60" r="3" fill="none" stroke="rgba(170,68,255,.35)" stroke-width="1">
-            <animate attributeName="r" from="5" to="28" dur="2.5s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" from=".5" to="0" dur="2.5s" repeatCount="indefinite"/>
-        </circle>
+
+    /* ── TINYAGI  Neural command hub ── */
+    tinyagi: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Wall terminal panels -->
+      <rect x="6" y="4" width="46" height="62" rx="2" fill="rgba(170,68,255,.05)" stroke="rgba(170,68,255,.22)" stroke-width="1"/>
+      <rect x="9" y="7" width="40" height="14" rx="1" fill="rgba(170,68,255,.12)"/>
+      <line x1="11" y1="27" x2="48" y2="27" stroke="rgba(170,68,255,.22)" stroke-width="1"/>
+      <line x1="11" y1="35" x2="44" y2="35" stroke="rgba(170,68,255,.1)"  stroke-width="1"/>
+      <line x1="11" y1="42" x2="46" y2="42" stroke="rgba(170,68,255,.1)"  stroke-width="1"/>
+      <line x1="11" y1="49" x2="41" y2="49" stroke="rgba(170,68,255,.08)" stroke-width="1"/>
+      <line x1="11" y1="56" x2="45" y2="56" stroke="rgba(170,68,255,.08)" stroke-width="1"/>
+      <circle cx="42" cy="12" r="3" fill="rgba(170,68,255,.6)"><animate attributeName="opacity" values="1;0.25;1" dur="2.1s" repeatCount="indefinite"/></circle>
+
+      <rect x="218" y="4" width="46" height="62" rx="2" fill="rgba(170,68,255,.05)" stroke="rgba(170,68,255,.22)" stroke-width="1"/>
+      <rect x="221" y="7" width="40" height="14" rx="1" fill="rgba(170,68,255,.12)"/>
+      <line x1="223" y1="27" x2="260" y2="27" stroke="rgba(170,68,255,.22)" stroke-width="1"/>
+      <line x1="223" y1="35" x2="256" y2="35" stroke="rgba(170,68,255,.1)"  stroke-width="1"/>
+      <line x1="223" y1="42" x2="258" y2="42" stroke="rgba(170,68,255,.1)"  stroke-width="1"/>
+      <line x1="223" y1="49" x2="254" y2="49" stroke="rgba(170,68,255,.08)" stroke-width="1"/>
+      <circle cx="254" cy="12" r="3" fill="rgba(170,68,255,.4)"><animate attributeName="opacity" values="1;0.15;1" dur="1.7s" repeatCount="indefinite"/></circle>
+
+      <!-- Network spokes to sub-nodes -->
+      <line x1="135" y1="58" x2="135" y2="16" stroke="rgba(170,68,255,.3)"  stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="135" y1="58" x2="58"  y2="22" stroke="rgba(170,68,255,.22)" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="135" y1="58" x2="212" y2="22" stroke="rgba(170,68,255,.22)" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="135" y1="58" x2="64"  y2="80" stroke="rgba(170,68,255,.18)" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="135" y1="58" x2="206" y2="80" stroke="rgba(170,68,255,.18)" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="135" y1="58" x2="102" y2="88" stroke="rgba(170,68,255,.14)" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="135" y1="58" x2="168" y2="88" stroke="rgba(170,68,255,.14)" stroke-width="1" stroke-dasharray="3 3"/>
+
+      <!-- Sub-nodes -->
+      <circle cx="135" cy="13" r="5"   fill="rgba(170,68,255,.22)" stroke="rgba(170,68,255,.5)"  stroke-width="1"/>
+      <circle cx="55"  cy="19" r="4"   fill="rgba(170,68,255,.17)" stroke="rgba(170,68,255,.42)" stroke-width="1"/>
+      <circle cx="215" cy="19" r="4"   fill="rgba(170,68,255,.17)" stroke="rgba(170,68,255,.42)" stroke-width="1"/>
+      <circle cx="61"  cy="77" r="3.5" fill="rgba(170,68,255,.14)" stroke="rgba(170,68,255,.35)" stroke-width="1"/>
+      <circle cx="209" cy="77" r="3.5" fill="rgba(170,68,255,.14)" stroke="rgba(170,68,255,.35)" stroke-width="1"/>
+      <circle cx="99"  cy="85" r="3"   fill="rgba(170,68,255,.11)" stroke="rgba(170,68,255,.28)" stroke-width="1"/>
+      <circle cx="171" cy="85" r="3"   fill="rgba(170,68,255,.11)" stroke="rgba(170,68,255,.28)" stroke-width="1"/>
+
+      <!-- Central hub -->
+      <circle cx="135" cy="58" r="28" fill="none" stroke="rgba(170,68,255,.05)" stroke-width="1"/>
+      <circle cx="135" cy="58" r="18" fill="rgba(170,68,255,.05)" stroke="rgba(170,68,255,.14)" stroke-width="1"/>
+      <circle cx="135" cy="58" r="10" fill="rgba(170,68,255,.18)" stroke="rgba(170,68,255,.5)"  stroke-width="1.5"/>
+      <circle cx="135" cy="58" r="4"  fill="rgba(170,68,255,.88)"/>
+      <!-- Pulse rings -->
+      <circle cx="135" cy="58" r="10" fill="none" stroke="rgba(170,68,255,.55)" stroke-width="1">
+        <animate attributeName="r" from="13" to="48" dur="2.6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from=".55" to="0" dur="2.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="135" cy="58" r="10" fill="none" stroke="rgba(170,68,255,.3)" stroke-width="1">
+        <animate attributeName="r" from="13" to="48" dur="2.6s" begin="1.3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from=".32" to="0" dur="2.6s" begin="1.3s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- Workstation (right side) -->
+      <rect x="178" y="144" width="68" height="16" rx="2" fill="rgba(170,68,255,.07)" stroke="rgba(170,68,255,.25)" stroke-width="1"/>
+      <rect x="186" y="126" width="44" height="24" rx="2" fill="rgba(0,0,0,.65)" stroke="rgba(170,68,255,.38)" stroke-width="1"/>
+      <rect x="189" y="129" width="38" height="18" rx="1" fill="rgba(170,68,255,.07)"/>
+      <line x1="192" y1="133" x2="224" y2="133" stroke="rgba(170,68,255,.22)" stroke-width="1"/>
+      <line x1="192" y1="139" x2="220" y2="139" stroke="rgba(170,68,255,.12)" stroke-width="1"/>
+      <line x1="192" y1="144" x2="222" y2="144" stroke="rgba(170,68,255,.1)"  stroke-width="1"/>
+      <circle cx="224" cy="130" r="2.5" fill="rgba(170,68,255,.65)"><animate attributeName="opacity" values="1;0.2;1" dur="1.9s" repeatCount="indefinite"/></circle>
     </svg>`,
 
-    analyst: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <polyline points="12,142 44,106 72,120 100,76 130,92 160,50 190,66 250,24"
-            stroke="rgba(0,136,255,.32)" stroke-width="1.5" fill="none" stroke-dasharray="5 2">
-            <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.8s" repeatCount="indefinite"/>
-        </polyline>
-        <circle cx="100" cy="76" r="3.5" fill="rgba(0,136,255,.65)"/>
-        <circle cx="160" cy="50" r="3.5" fill="rgba(0,136,255,.65)"/>
-        <line x1="12"  y1="147" x2="250" y2="147" stroke="rgba(0,136,255,.1)"  stroke-width="1"/>
-        <line x1="12"  y1="20"  x2="12"  y2="147" stroke="rgba(0,136,255,.1)"  stroke-width="1"/>
-        <rect x="200" y="20" width="24" height="38" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.16)" stroke-width="1"/>
-        <rect x="228" y="36" width="24" height="22" rx="1" fill="rgba(0,136,255,.05)" stroke="rgba(0,136,255,.16)" stroke-width="1"/>
+    /* ── MARKET-ANALYST  Trading floor ── */
+    analyst: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Price axis -->
+      <line x1="16" y1="6"   x2="16"  y2="128" stroke="rgba(0,136,255,.2)"  stroke-width="1"/>
+      <line x1="16" y1="128" x2="176" y2="128" stroke="rgba(0,136,255,.2)"  stroke-width="1"/>
+      <!-- Grid levels -->
+      <line x1="16" y1="30"  x2="176" y2="30"  stroke="rgba(0,136,255,.07)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="16" y1="58"  x2="176" y2="58"  stroke="rgba(0,136,255,.07)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="16" y1="86"  x2="176" y2="86"  stroke="rgba(0,136,255,.07)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="16" y1="114" x2="176" y2="114" stroke="rgba(0,136,255,.07)" stroke-width="1" stroke-dasharray="4 3"/>
+
+      <!-- Candlestick candles (w=9, gap=3 → step=12) -->
+      <rect x="22" y="74" width="9" height="30" fill="rgba(0,210,100,.16)" stroke="rgba(0,210,100,.44)" stroke-width="1"/><line x1="26" y1="64" x2="26" y2="74" stroke="rgba(0,210,100,.44)" stroke-width="1"/>
+      <rect x="34" y="84" width="9" height="26" fill="rgba(255,60,60,.14)"  stroke="rgba(255,60,60,.4)"  stroke-width="1"/><line x1="38" y1="76" x2="38" y2="84" stroke="rgba(255,60,60,.4)"  stroke-width="1"/>
+      <rect x="46" y="62" width="9" height="38" fill="rgba(0,210,100,.16)" stroke="rgba(0,210,100,.4)"  stroke-width="1"/><line x1="50" y1="52" x2="50" y2="62" stroke="rgba(0,210,100,.4)"  stroke-width="1"/>
+      <rect x="58" y="46" width="9" height="46" fill="rgba(0,210,100,.2)"  stroke="rgba(0,210,100,.46)" stroke-width="1"/><line x1="62" y1="36" x2="62" y2="46" stroke="rgba(0,210,100,.46)" stroke-width="1"/>
+      <rect x="70" y="58" width="9" height="32" fill="rgba(255,60,60,.14)"  stroke="rgba(255,60,60,.36)" stroke-width="1"/><line x1="74" y1="50" x2="74" y2="58" stroke="rgba(255,60,60,.36)" stroke-width="1"/>
+      <rect x="82" y="34" width="9" height="50" fill="rgba(0,210,100,.22)" stroke="rgba(0,210,100,.5)"  stroke-width="1"/><line x1="86" y1="24" x2="86" y2="34" stroke="rgba(0,210,100,.5)"  stroke-width="1"/>
+      <rect x="94" y="26" width="9" height="54" fill="rgba(0,210,100,.2)"  stroke="rgba(0,210,100,.46)" stroke-width="1"/>
+      <rect x="106" y="38" width="9" height="40" fill="rgba(255,60,60,.12)" stroke="rgba(255,60,60,.32)" stroke-width="1"/>
+      <rect x="118" y="18" width="9" height="52" fill="rgba(0,210,100,.2)"  stroke="rgba(0,210,100,.44)" stroke-width="1"/>
+      <rect x="130" y="10" width="9" height="62" fill="rgba(0,210,100,.25)" stroke="rgba(0,210,100,.55)" stroke-width="1"/>
+      <rect x="142" y="22" width="9" height="44" fill="rgba(255,60,60,.12)" stroke="rgba(255,60,60,.3)"  stroke-width="1"/>
+      <rect x="154" y="8"  width="9" height="60" fill="rgba(0,210,100,.28)" stroke="rgba(0,210,100,.58)" stroke-width="1"/>
+
+      <!-- Moving average line -->
+      <polyline points="26,102 38,106 50,90 62,74 74,76 86,56 98,50 110,60 122,50 135,40 147,50 159,38"
+          stroke="rgba(0,136,255,.65)" stroke-width="2" fill="none"/>
+
+      <!-- Volume histogram -->
+      <rect x="22"  y="142" width="9"  height="12" fill="rgba(0,136,255,.18)"/>
+      <rect x="34"  y="146" width="9"  height="8"  fill="rgba(0,136,255,.14)"/>
+      <rect x="46"  y="139" width="9"  height="15" fill="rgba(0,136,255,.18)"/>
+      <rect x="58"  y="135" width="9"  height="19" fill="rgba(0,136,255,.22)"/>
+      <rect x="70"  y="142" width="9"  height="12" fill="rgba(0,136,255,.16)"/>
+      <rect x="82"  y="131" width="9"  height="23" fill="rgba(0,136,255,.24)"/>
+      <rect x="94"  y="128" width="9"  height="26" fill="rgba(0,136,255,.26)"/>
+      <rect x="106" y="138" width="9"  height="16" fill="rgba(0,136,255,.18)"/>
+      <rect x="118" y="133" width="9"  height="21" fill="rgba(0,136,255,.22)"/>
+      <rect x="130" y="125" width="9"  height="29" fill="rgba(0,136,255,.28)"/>
+      <rect x="142" y="136" width="9"  height="18" fill="rgba(0,136,255,.18)"/>
+      <rect x="154" y="129" width="9"  height="25" fill="rgba(0,136,255,.24)"/>
+
+      <!-- Live data panel (right) -->
+      <rect x="180" y="4" width="84" height="132" rx="2" fill="rgba(0,136,255,.04)" stroke="rgba(0,136,255,.2)" stroke-width="1"/>
+      <rect x="183" y="7" width="78" height="16"  rx="1" fill="rgba(0,136,255,.1)"/>
+      <text x="187" y="19" font-family="monospace" font-size="8" fill="rgba(0,136,255,.65)" letter-spacing="1">LIVE DATA</text>
+      <line x1="183" y1="26" x2="261" y2="26" stroke="rgba(0,136,255,.15)" stroke-width="1"/>
+      <text x="186" y="39" font-family="monospace" font-size="9" fill="rgba(0,210,100,.55)">BTC  ▲ +3.2%</text>
+      <text x="186" y="52" font-family="monospace" font-size="9" fill="rgba(0,210,100,.45)">ETH  ▲ +1.8%</text>
+      <text x="186" y="65" font-family="monospace" font-size="9" fill="rgba(255,80,80,.5)">SPX  ▼ -0.4%</text>
+      <text x="186" y="78" font-family="monospace" font-size="9" fill="rgba(0,210,100,.45)">GOLD ▲ +0.9%</text>
+      <text x="186" y="91" font-family="monospace" font-size="9" fill="rgba(255,80,80,.4)">OIL  ▼ -1.2%</text>
+      <line x1="183" y1="98" x2="261" y2="98" stroke="rgba(0,136,255,.12)" stroke-width="1"/>
+      <text x="186" y="110" font-family="monospace" font-size="8" fill="rgba(0,136,255,.35)">VOL: 2.4M</text>
+      <text x="186" y="122" font-family="monospace" font-size="8" fill="rgba(0,136,255,.35)">TREND: BULL</text>
+      <circle cx="256" cy="10" r="3" fill="rgba(0,210,100,.7)"><animate attributeName="opacity" values="1;0.2;1" dur="1.4s" repeatCount="indefinite"/></circle>
     </svg>`,
 
-    notion: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <rect x="22" y="14" width="78" height="100" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.18)" stroke-width="1"/>
-        <line x1="34" y1="32" x2="88" y2="32" stroke="rgba(0,255,170,.3)"  stroke-width="1.5"/>
-        <line x1="34" y1="47" x2="84" y2="47" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
-        <line x1="34" y1="60" x2="80" y2="60" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
-        <line x1="34" y1="73" x2="86" y2="73" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
-        <line x1="34" y1="86" x2="76" y2="86" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
-        <rect x="128" y="28" width="78" height="72" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
-        <line x1="140" y1="46" x2="194" y2="46" stroke="rgba(0,255,170,.2)"  stroke-width="1"/>
-        <line x1="140" y1="60" x2="188" y2="60" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
-        <line x1="140" y1="74" x2="191" y2="74" stroke="rgba(0,255,170,.08)" stroke-width="1"/>
+    /* ── NOTION-CREATOR  Document studio ── */
+    notion: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Main document page -->
+      <rect x="10" y="6" width="90" height="118" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.22)" stroke-width="1"/>
+      <rect x="13" y="9" width="84" height="14" rx="1" fill="rgba(0,255,170,.1)"/>
+      <text x="17" y="20" font-family="monospace" font-size="8" fill="rgba(0,255,170,.55)" letter-spacing="1">TEMPLATE</text>
+      <line x1="13" y1="28" x2="96" y2="28" stroke="rgba(0,255,170,.18)" stroke-width="1.5"/>
+      <!-- Title line -->
+      <line x1="17" y1="38" x2="88" y2="38" stroke="rgba(0,255,170,.38)" stroke-width="2"/>
+      <!-- Body lines -->
+      <line x1="17" y1="50" x2="86" y2="50" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+      <line x1="17" y1="58" x2="84" y2="58" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+      <line x1="17" y1="66" x2="88" y2="66" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+      <line x1="17" y1="74" x2="80" y2="74" stroke="rgba(0,255,170,.1)"  stroke-width="1"/>
+      <!-- Separator -->
+      <line x1="13" y1="82" x2="96" y2="82" stroke="rgba(0,255,170,.12)" stroke-width="1" stroke-dasharray="4 3"/>
+      <!-- Checklist items -->
+      <rect x="17" y="88"  width="7" height="7" rx="1" fill="rgba(0,255,170,.08)" stroke="rgba(0,255,170,.3)" stroke-width="1"/>
+      <line x1="19" y1="92" x2="21" y2="94" stroke="rgba(0,255,170,.7)" stroke-width="1.5"/>
+      <line x1="21" y1="94" x2="24" y2="89" stroke="rgba(0,255,170,.7)" stroke-width="1.5"/>
+      <line x1="28" y1="92" x2="82" y2="92" stroke="rgba(0,255,170,.18)" stroke-width="1"/>
+
+      <rect x="17" y="100" width="7" height="7" rx="1" fill="rgba(0,255,170,.08)" stroke="rgba(0,255,170,.3)" stroke-width="1"/>
+      <line x1="28" y1="104" x2="78" y2="104" stroke="rgba(0,255,170,.14)" stroke-width="1"/>
+
+      <rect x="17" y="112" width="7" height="7" rx="1" fill="rgba(0,255,170,.08)" stroke="rgba(0,255,170,.25)" stroke-width="1"/>
+      <line x1="28" y1="116" x2="84" y2="116" stroke="rgba(0,255,170,.12)" stroke-width="1"/>
+
+      <!-- Second document (offset behind) -->
+      <rect x="108" y="10" width="90" height="100" rx="3" fill="rgba(0,255,170,.03)" stroke="rgba(0,255,170,.15)" stroke-width="1"/>
+      <rect x="111" y="13" width="84" height="12" rx="1" fill="rgba(0,255,170,.07)"/>
+      <line x1="111" y1="29" x2="194" y2="29" stroke="rgba(0,255,170,.18)" stroke-width="1.5"/>
+      <line x1="115" y1="39" x2="192" y2="39" stroke="rgba(0,255,170,.28)" stroke-width="2"/>
+      <line x1="115" y1="51" x2="190" y2="51" stroke="rgba(0,255,170,.09)" stroke-width="1"/>
+      <line x1="115" y1="59" x2="188" y2="59" stroke="rgba(0,255,170,.09)" stroke-width="1"/>
+      <line x1="115" y1="67" x2="191" y2="67" stroke="rgba(0,255,170,.09)" stroke-width="1"/>
+      <line x1="115" y1="75" x2="186" y2="75" stroke="rgba(0,255,170,.09)" stroke-width="1"/>
+      <line x1="115" y1="83" x2="189" y2="83" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="115" y1="91" x2="184" y2="91" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+
+      <!-- Third page (far right, small) -->
+      <rect x="207" y="16" width="55" height="80" rx="2" fill="rgba(0,255,170,.02)" stroke="rgba(0,255,170,.1)" stroke-width="1"/>
+      <rect x="210" y="19" width="49" height="10" rx="1" fill="rgba(0,255,170,.06)"/>
+      <line x1="210" y1="32" x2="258" y2="32" stroke="rgba(0,255,170,.14)" stroke-width="1.5"/>
+      <line x1="210" y1="42" x2="256" y2="42" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="210" y1="50" x2="254" y2="50" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="210" y1="58" x2="256" y2="58" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="210" y1="66" x2="252" y2="66" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="210" y1="74" x2="255" y2="74" stroke="rgba(0,255,170,.07)" stroke-width="1"/>
+      <line x1="210" y1="82" x2="253" y2="82" stroke="rgba(0,255,170,.05)" stroke-width="1"/>
+
+      <!-- Workstation -->
+      <rect x="174" y="144" width="84" height="16" rx="2" fill="rgba(0,255,170,.06)" stroke="rgba(0,255,170,.22)" stroke-width="1"/>
+      <rect x="182" y="126" width="52" height="24" rx="2" fill="rgba(0,0,0,.65)" stroke="rgba(0,255,170,.36)" stroke-width="1"/>
+      <rect x="185" y="129" width="46" height="18" rx="1" fill="rgba(0,255,170,.07)"/>
+      <line x1="188" y1="133" x2="228" y2="133" stroke="rgba(0,255,170,.22)" stroke-width="1"/>
+      <line x1="188" y1="139" x2="224" y2="139" stroke="rgba(0,255,170,.12)" stroke-width="1"/>
+      <rect x="229" y="136" width="3" height="9" fill="rgba(0,255,170,.7)"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></rect>
     </svg>`,
 
-    finance: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <polyline points="12,135 48,102 82,118 116,72 150,88 184,46 218,62"
-            stroke="rgba(255,170,0,.3)" stroke-width="1.5" fill="none"/>
-        <polyline points="12,150 48,128 82,140 116,96 150,112 184,72 218,84"
-            stroke="rgba(255,170,0,.1)" stroke-width="1" fill="none"/>
-        <text x="116" y="30" font-family="monospace" font-size="26" fill="rgba(255,170,0,.07)">$</text>
-        <text x="190" y="56" font-family="monospace" font-size="17" fill="rgba(255,170,0,.06)">$</text>
-        <text x="32"  y="88" font-family="monospace" font-size="15" fill="rgba(255,170,0,.06)">%</text>
-        <line x1="12" y1="154" x2="252" y2="154" stroke="rgba(255,170,0,.12)" stroke-width="1"/>
+    /* ── FINANCE-CREATOR  Financial spreadsheet lab ── */
+    finance: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Formula bar -->
+      <rect x="8" y="4" width="254" height="14" rx="1" fill="rgba(255,170,0,.05)" stroke="rgba(255,170,0,.2)" stroke-width="1"/>
+      <text x="12" y="14" font-family="monospace" font-size="8" fill="rgba(255,170,0,.35)">fx  =SUM(B2:B8)*0.82</text>
+
+      <!-- Column headers -->
+      <rect x="8" y="20" width="30" height="12" rx="0" fill="rgba(255,170,0,.06)" stroke="rgba(255,170,0,.18)" stroke-width="1"/>
+      <text x="17" y="29" font-family="monospace" font-size="8" fill="rgba(255,170,0,.4)">A</text>
+      <rect x="38" y="20" width="40" height="12" rx="0" fill="rgba(255,170,0,.06)" stroke="rgba(255,170,0,.18)" stroke-width="1"/>
+      <text x="52" y="29" font-family="monospace" font-size="8" fill="rgba(255,170,0,.4)">B</text>
+      <rect x="78" y="20" width="40" height="12" rx="0" fill="rgba(255,170,0,.06)" stroke="rgba(255,170,0,.18)" stroke-width="1"/>
+      <text x="92" y="29" font-family="monospace" font-size="8" fill="rgba(255,170,0,.4)">C</text>
+      <rect x="118" y="20" width="40" height="12" rx="0" fill="rgba(255,170,0,.12)" stroke="rgba(255,170,0,.3)" stroke-width="1"/>
+      <text x="130" y="29" font-family="monospace" font-size="8" fill="rgba(255,170,0,.6)">D</text>
+
+      <!-- Spreadsheet rows -->
+      <rect x="8"  y="32" width="30" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="10" y="41" font-family="monospace" font-size="7" fill="rgba(255,170,0,.3)">Jan</text>
+      <rect x="38" y="32" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="42" y="41" font-family="monospace" font-size="7" fill="rgba(255,170,0,.45)">$1,240</text>
+      <rect x="78" y="32" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="82" y="41" font-family="monospace" font-size="7" fill="rgba(255,170,0,.38)">$580</text>
+      <rect x="118" y="32" width="40" height="11" fill="rgba(255,170,0,.07)" stroke="rgba(255,170,0,.18)" stroke-width="1"/><text x="122" y="41" font-family="monospace" font-size="7" fill="rgba(0,210,100,.55)">▲ 8.2%</text>
+
+      <rect x="8"  y="43" width="30" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="10" y="52" font-family="monospace" font-size="7" fill="rgba(255,170,0,.3)">Feb</text>
+      <rect x="38" y="43" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="42" y="52" font-family="monospace" font-size="7" fill="rgba(255,170,0,.45)">$1,890</text>
+      <rect x="78" y="43" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="82" y="52" font-family="monospace" font-size="7" fill="rgba(255,170,0,.38)">$720</text>
+      <rect x="118" y="43" width="40" height="11" fill="rgba(255,170,0,.07)" stroke="rgba(255,170,0,.18)" stroke-width="1"/><text x="122" y="52" font-family="monospace" font-size="7" fill="rgba(0,210,100,.55)">▲ 15.4%</text>
+
+      <rect x="8"  y="54" width="30" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="10" y="63" font-family="monospace" font-size="7" fill="rgba(255,170,0,.3)">Mar</text>
+      <rect x="38" y="54" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="42" y="63" font-family="monospace" font-size="7" fill="rgba(255,170,0,.45)">$1,640</text>
+      <rect x="78" y="54" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="82" y="63" font-family="monospace" font-size="7" fill="rgba(255,170,0,.38)">$610</text>
+      <rect x="118" y="54" width="40" height="11" fill="rgba(255,170,0,.07)" stroke="rgba(255,170,0,.18)" stroke-width="1"/><text x="122" y="63" font-family="monospace" font-size="7" fill="rgba(255,80,80,.45)">▼ -2.8%</text>
+
+      <rect x="8"  y="65" width="30" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="10" y="74" font-family="monospace" font-size="7" fill="rgba(255,170,0,.3)">Apr</text>
+      <rect x="38" y="65" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="42" y="74" font-family="monospace" font-size="7" fill="rgba(255,170,0,.45)">$2,310</text>
+      <rect x="78" y="65" width="40" height="11" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.12)" stroke-width="1"/><text x="82" y="74" font-family="monospace" font-size="7" fill="rgba(255,170,0,.38)">$940</text>
+      <rect x="118" y="65" width="40" height="11" fill="rgba(255,170,0,.07)" stroke="rgba(255,170,0,.18)" stroke-width="1"/><text x="122" y="74" font-family="monospace" font-size="7" fill="rgba(0,210,100,.6)">▲ 22.1%</text>
+
+      <!-- Totals row (highlighted) -->
+      <rect x="8"  y="78" width="30" height="12" fill="rgba(255,170,0,.12)" stroke="rgba(255,170,0,.28)" stroke-width="1"/><text x="10" y="87" font-family="monospace" font-size="7" fill="rgba(255,170,0,.6)">TOT</text>
+      <rect x="38" y="78" width="40" height="12" fill="rgba(255,170,0,.12)" stroke="rgba(255,170,0,.28)" stroke-width="1"/><text x="42" y="87" font-family="monospace" font-size="7" fill="rgba(255,200,0,.7)">$7,080</text>
+      <rect x="78" y="78" width="40" height="12" fill="rgba(255,170,0,.12)" stroke="rgba(255,170,0,.28)" stroke-width="1"/><text x="82" y="87" font-family="monospace" font-size="7" fill="rgba(255,200,0,.7)">$2,850</text>
+      <rect x="118" y="78" width="40" height="12" fill="rgba(255,170,0,.15)" stroke="rgba(255,170,0,.35)" stroke-width="1"/><text x="122" y="87" font-family="monospace" font-size="7" fill="rgba(255,200,0,.75)">40.2% NET</text>
+
+      <!-- Sparkline chart (right side) -->
+      <rect x="172" y="4" width="90" height="90" rx="2" fill="rgba(255,170,0,.04)" stroke="rgba(255,170,0,.18)" stroke-width="1"/>
+      <text x="176" y="14" font-family="monospace" font-size="8" fill="rgba(255,170,0,.45)" letter-spacing="1">TREND</text>
+      <line x1="172" y1="18" x2="262" y2="18" stroke="rgba(255,170,0,.15)" stroke-width="1"/>
+      <polyline points="176,80 196,68 212,72 228,54 244,42 258,32"
+          stroke="rgba(255,200,0,.55)" stroke-width="2" fill="none"/>
+      <polyline points="176,80 196,68 212,72 228,54 244,42 258,32"
+          stroke="rgba(255,170,0,.1)" stroke-width="6" fill="none"/>
+      <circle cx="258" cy="32" r="4" fill="rgba(255,200,0,.7)"/>
+      <text x="176" y="88" font-family="monospace" font-size="8" fill="rgba(255,170,0,.3)">$  +42.3%  ROI</text>
+
+      <!-- Workstation -->
+      <rect x="172" y="144" width="90" height="16" rx="2" fill="rgba(255,170,0,.07)" stroke="rgba(255,170,0,.22)" stroke-width="1"/>
+      <rect x="182" y="126" width="52" height="24" rx="2" fill="rgba(0,0,0,.65)" stroke="rgba(255,170,0,.35)" stroke-width="1"/>
+      <rect x="185" y="129" width="46" height="18" rx="1" fill="rgba(255,170,0,.06)"/>
+      <line x1="188" y1="134" x2="228" y2="134" stroke="rgba(255,170,0,.2)"  stroke-width="1"/>
+      <line x1="188" y1="140" x2="224" y2="140" stroke="rgba(255,170,0,.12)" stroke-width="1"/>
     </svg>`,
 
-    business: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <rect x="18" y="104" width="230" height="6" rx="1" fill="rgba(136,153,238,.2)"/>
-        <rect x="38"  y="68" width="40" height="36" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
-        <rect x="95"  y="52" width="40" height="52" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
-        <rect x="152" y="74" width="40" height="30" rx="1" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.13)" stroke-width="1"/>
-        <rect x="14"  y="18" width="60" height="42" rx="2" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
-        <line x1="24" y1="30" x2="64" y2="30" stroke="rgba(136,153,238,.22)" stroke-width="1"/>
-        <line x1="24" y1="42" x2="60" y2="42" stroke="rgba(136,153,238,.08)" stroke-width="1"/>
+    /* ── BUSINESS-CREATOR  Strategy / org-chart room ── */
+    business: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Top strategy board -->
+      <rect x="8" y="4" width="154" height="74" rx="2" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.18)" stroke-width="1"/>
+      <text x="12" y="14" font-family="monospace" font-size="8" fill="rgba(136,153,238,.45)" letter-spacing="1">ORG CHART</text>
+      <line x1="8" y1="18" x2="162" y2="18" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+
+      <!-- Hierarchy: CEO top -->
+      <rect x="58" y="22" width="46" height="14" rx="2" fill="rgba(136,153,238,.1)" stroke="rgba(136,153,238,.35)" stroke-width="1"/>
+      <text x="62" y="32" font-family="monospace" font-size="7" fill="rgba(136,153,238,.6)">STRATEGY</text>
+
+      <!-- Level 2: 3 boxes -->
+      <line x1="81" y1="36" x2="81" y2="44" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+      <line x1="28" y1="44" x2="135" y2="44" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+      <line x1="28" y1="44" x2="28" y2="50" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+      <line x1="81" y1="44" x2="81" y2="50" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+      <line x1="135" y1="44" x2="135" y2="50" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+
+      <rect x="10" y="50" width="36" height="12" rx="1" fill="rgba(136,153,238,.07)" stroke="rgba(136,153,238,.28)" stroke-width="1"/>
+      <text x="13" y="59" font-family="monospace" font-size="6" fill="rgba(136,153,238,.5)">PRODUCT</text>
+      <rect x="63" y="50" width="36" height="12" rx="1" fill="rgba(136,153,238,.07)" stroke="rgba(136,153,238,.28)" stroke-width="1"/>
+      <text x="66" y="59" font-family="monospace" font-size="6" fill="rgba(136,153,238,.5)">MARKET</text>
+      <rect x="117" y="50" width="36" height="12" rx="1" fill="rgba(136,153,238,.07)" stroke="rgba(136,153,238,.28)" stroke-width="1"/>
+      <text x="120" y="59" font-family="monospace" font-size="6" fill="rgba(136,153,238,.5)">FINANCE</text>
+
+      <!-- Gantt / timeline bars -->
+      <line x1="8" y1="68" x2="162" y2="68" stroke="rgba(136,153,238,.1)" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="12" y="77" font-family="monospace" font-size="7" fill="rgba(136,153,238,.3)">Q1</text>
+      <rect x="28" y="71" width="60" height="5" rx="1" fill="rgba(136,153,238,.22)" stroke="rgba(136,153,238,.35)" stroke-width="1"/>
+      <text x="12" y="86" font-family="monospace" font-size="7" fill="rgba(136,153,238,.3)">Q2</text>
+      <rect x="38" y="80" width="80" height="5" rx="1" fill="rgba(136,153,238,.18)" stroke="rgba(136,153,238,.3)" stroke-width="1"/>
+
+      <!-- KPI progress panel (right) -->
+      <rect x="172" y="4" width="90" height="94" rx="2" fill="rgba(136,153,238,.04)" stroke="rgba(136,153,238,.18)" stroke-width="1"/>
+      <text x="176" y="14" font-family="monospace" font-size="8" fill="rgba(136,153,238,.45)" letter-spacing="1">KPI TRACK</text>
+      <line x1="172" y1="18" x2="262" y2="18" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+
+      <text x="176" y="30" font-family="monospace" font-size="7" fill="rgba(136,153,238,.35)">Revenue</text>
+      <rect x="176" y="33" width="78" height="5" rx="1" fill="rgba(136,153,238,.08)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+      <rect x="176" y="33" width="52" height="5" rx="1" fill="rgba(136,153,238,.3)"/>
+
+      <text x="176" y="47" font-family="monospace" font-size="7" fill="rgba(136,153,238,.35)">Products</text>
+      <rect x="176" y="50" width="78" height="5" rx="1" fill="rgba(136,153,238,.08)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+      <rect x="176" y="50" width="34" height="5" rx="1" fill="rgba(136,153,238,.25)"/>
+
+      <text x="176" y="64" font-family="monospace" font-size="7" fill="rgba(136,153,238,.35)">Clients</text>
+      <rect x="176" y="67" width="78" height="5" rx="1" fill="rgba(136,153,238,.08)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+      <rect x="176" y="67" width="64" height="5" rx="1" fill="rgba(136,153,238,.28)"/>
+
+      <text x="176" y="81" font-family="monospace" font-size="7" fill="rgba(136,153,238,.35)">Growth</text>
+      <rect x="176" y="84" width="78" height="5" rx="1" fill="rgba(136,153,238,.08)" stroke="rgba(136,153,238,.15)" stroke-width="1"/>
+      <rect x="176" y="84" width="46" height="5" rx="1" fill="rgba(136,153,238,.22)"/>
+
+      <!-- Workstation -->
+      <rect x="172" y="144" width="90" height="16" rx="2" fill="rgba(136,153,238,.07)" stroke="rgba(136,153,238,.22)" stroke-width="1"/>
+      <rect x="180" y="126" width="54" height="24" rx="2" fill="rgba(0,0,0,.65)" stroke="rgba(136,153,238,.35)" stroke-width="1"/>
+      <rect x="183" y="129" width="48" height="18" rx="1" fill="rgba(136,153,238,.06)"/>
+      <line x1="186" y1="134" x2="228" y2="134" stroke="rgba(136,153,238,.2)"  stroke-width="1"/>
+      <line x1="186" y1="139" x2="224" y2="139" stroke="rgba(136,153,238,.12)" stroke-width="1"/>
+      <line x1="186" y1="144" x2="226" y2="144" stroke="rgba(136,153,238,.1)"  stroke-width="1"/>
     </svg>`,
 
-    copy: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <text x="14" y="30" font-family="monospace" font-size="10" fill="rgba(255,68,204,.22)" letter-spacing="2">SEO TITLE</text>
-        <line x1="14" y1="40"  x2="175" y2="40"  stroke="rgba(255,68,204,.24)" stroke-width="1.5"/>
-        <line x1="14" y1="62"  x2="145" y2="62"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
-        <line x1="14" y1="76"  x2="154" y2="76"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
-        <line x1="14" y1="90"  x2="132" y2="90"  stroke="rgba(255,68,204,.09)" stroke-width="1"/>
-        <line x1="14" y1="104" x2="148" y2="104" stroke="rgba(255,68,204,.09)" stroke-width="1"/>
-        <text x="184" y="30" font-family="monospace" font-size="9" fill="rgba(255,68,204,.18)">TAGS</text>
-        <rect x="184" y="38" width="68" height="64" rx="2" fill="none" stroke="rgba(255,68,204,.1)" stroke-width="1"/>
-        <text x="190" y="56" font-family="monospace" font-size="8" fill="rgba(255,68,204,.14)">#notion</text>
-        <text x="190" y="70" font-family="monospace" font-size="8" fill="rgba(255,68,204,.1)">#template</text>
-        <text x="190" y="84" font-family="monospace" font-size="8" fill="rgba(255,68,204,.1)">#digital</text>
+    /* ── COPYWRITER  Writing studio ── */
+    copy: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Main document -->
+      <rect x="8" y="4" width="160" height="116" rx="2" fill="rgba(255,68,204,.04)" stroke="rgba(255,68,204,.2)" stroke-width="1"/>
+      <rect x="11" y="7" width="154" height="12" rx="1" fill="rgba(255,68,204,.08)"/>
+      <text x="14" y="16" font-family="monospace" font-size="7" fill="rgba(255,68,204,.5)" letter-spacing="2">DRAFT  v2.4</text>
+
+      <!-- SEO Title (large) -->
+      <line x1="12" y1="24" x2="165" y2="24" stroke="rgba(255,68,204,.28)" stroke-width="2.5"/>
+      <text x="12" y="35" font-family="monospace" font-size="9" fill="rgba(255,68,204,.32)" letter-spacing="1">SEO HEADLINE</text>
+      <line x1="12" y1="40" x2="162" y2="40" stroke="rgba(255,68,204,.22)" stroke-width="1.5"/>
+
+      <!-- Body text lines -->
+      <line x1="12" y1="52" x2="160" y2="52" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+      <line x1="12" y1="60" x2="154" y2="60" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+      <line x1="12" y1="68" x2="158" y2="68" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+      <line x1="12" y1="76" x2="148" y2="76" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+      <line x1="12" y1="84" x2="156" y2="84" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+
+      <!-- Section break -->
+      <line x1="12" y1="91" x2="165" y2="91" stroke="rgba(255,68,204,.1)" stroke-width="1" stroke-dasharray="3 3"/>
+
+      <!-- Bullet points -->
+      <circle cx="16" cy="100" r="2" fill="rgba(255,68,204,.35)"/>
+      <line x1="22" y1="100" x2="152" y2="100" stroke="rgba(255,68,204,.12)" stroke-width="1"/>
+      <circle cx="16" cy="110" r="2" fill="rgba(255,68,204,.28)"/>
+      <line x1="22" y1="110" x2="144" y2="110" stroke="rgba(255,68,204,.1)"  stroke-width="1"/>
+      <circle cx="16" cy="116" r="2" fill="rgba(255,68,204,.2)"/>
+      <line x1="22" y1="116" x2="148" y2="116" stroke="rgba(255,68,204,.08)" stroke-width="1"/>
+
+      <!-- Cursor blink -->
+      <rect x="162" y="52" width="2" height="9" fill="rgba(255,68,204,.8)"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></rect>
+
+      <!-- Tags / keywords panel -->
+      <rect x="178" y="4" width="84" height="108" rx="2" fill="rgba(255,68,204,.03)" stroke="rgba(255,68,204,.16)" stroke-width="1"/>
+      <text x="182" y="14" font-family="monospace" font-size="7" fill="rgba(255,68,204,.45)" letter-spacing="1">KEYWORDS</text>
+      <line x1="178" y1="18" x2="262" y2="18" stroke="rgba(255,68,204,.12)" stroke-width="1"/>
+      <!-- Tag pills -->
+      <rect x="182" y="22" width="40" height="9" rx="4" fill="rgba(255,68,204,.1)" stroke="rgba(255,68,204,.28)" stroke-width="1"/>
+      <text x="186" y="29" font-family="monospace" font-size="6" fill="rgba(255,68,204,.5)">#notion</text>
+      <rect x="226" y="22" width="32" height="9" rx="4" fill="rgba(255,68,204,.08)" stroke="rgba(255,68,204,.22)" stroke-width="1"/>
+      <text x="229" y="29" font-family="monospace" font-size="6" fill="rgba(255,68,204,.42)">#ai</text>
+      <rect x="182" y="35" width="46" height="9" rx="4" fill="rgba(255,68,204,.08)" stroke="rgba(255,68,204,.2)" stroke-width="1"/>
+      <text x="185" y="42" font-family="monospace" font-size="6" fill="rgba(255,68,204,.42)">#template</text>
+      <rect x="232" y="35" width="26" height="9" rx="4" fill="rgba(255,68,204,.08)" stroke="rgba(255,68,204,.18)" stroke-width="1"/>
+      <text x="235" y="42" font-family="monospace" font-size="6" fill="rgba(255,68,204,.38)">#seo</text>
+      <rect x="182" y="48" width="38" height="9" rx="4" fill="rgba(255,68,204,.07)" stroke="rgba(255,68,204,.16)" stroke-width="1"/>
+      <text x="185" y="55" font-family="monospace" font-size="6" fill="rgba(255,68,204,.35)">#digital</text>
+      <rect x="224" y="48" width="34" height="9" rx="4" fill="rgba(255,68,204,.07)" stroke="rgba(255,68,204,.16)" stroke-width="1"/>
+      <text x="227" y="55" font-family="monospace" font-size="6" fill="rgba(255,68,204,.32)">#copy</text>
+      <!-- SEO score -->
+      <line x1="182" y1="64" x2="258" y2="64" stroke="rgba(255,68,204,.1)" stroke-width="1"/>
+      <text x="182" y="74" font-family="monospace" font-size="7" fill="rgba(255,68,204,.35)">SEO Score</text>
+      <rect x="182" y="78" width="74" height="6" rx="2" fill="rgba(255,68,204,.06)" stroke="rgba(255,68,204,.14)" stroke-width="1"/>
+      <rect x="182" y="78" width="58" height="6" rx="2" fill="rgba(255,68,204,.3)"/>
+      <text x="182" y="93" font-family="monospace" font-size="7" fill="rgba(255,68,204,.35)">Readability</text>
+      <rect x="182" y="97" width="74" height="6" rx="2" fill="rgba(255,68,204,.06)" stroke="rgba(255,68,204,.14)" stroke-width="1"/>
+      <rect x="182" y="97" width="66" height="6" rx="2" fill="rgba(255,68,204,.25)"/>
+
+      <!-- Workstation -->
+      <rect x="172" y="144" width="90" height="16" rx="2" fill="rgba(255,68,204,.06)" stroke="rgba(255,68,204,.2)"  stroke-width="1"/>
+      <rect x="180" y="126" width="54" height="24" rx="2" fill="rgba(0,0,0,.65)" stroke="rgba(255,68,204,.34)" stroke-width="1"/>
+      <rect x="183" y="129" width="48" height="18" rx="1" fill="rgba(255,68,204,.06)"/>
+      <line x1="186" y1="133" x2="228" y2="133" stroke="rgba(255,68,204,.2)"  stroke-width="1"/>
+      <line x1="186" y1="139" x2="224" y2="139" stroke="rgba(255,68,204,.12)" stroke-width="1"/>
     </svg>`,
 
-    publish: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <circle cx="132" cy="55" r="7" fill="rgba(255,102,0,.55)"/>
-        <circle cx="132" cy="55" r="7" fill="none" stroke="rgba(255,102,0,.4)" stroke-width="1">
-            <animate attributeName="r" from="12" to="58" dur="2.2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" from=".55" to="0" dur="2.2s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="132" cy="55" r="7" fill="none" stroke="rgba(255,102,0,.25)" stroke-width="1">
-            <animate attributeName="r" from="12" to="72" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" from=".3" to="0" dur="2.2s" begin="0.8s" repeatCount="indefinite"/>
-        </circle>
-        <line x1="12" y1="148" x2="252" y2="148" stroke="rgba(255,102,0,.1)" stroke-width="1"/>
-        <text x="106" y="116" font-family="monospace" font-size="10" fill="rgba(255,102,0,.24)" letter-spacing="3">LIVE</text>
+    /* ── PUBLISHER  Launch control ── */
+    publish: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- 4 product cards (left 2×2 grid) -->
+      <!-- Card 1 -->
+      <rect x="8"  y="6"  width="66" height="52" rx="2" fill="rgba(255,102,0,.05)" stroke="rgba(255,102,0,.22)" stroke-width="1"/>
+      <rect x="11" y="9"  width="60" height="28" rx="1" fill="rgba(255,102,0,.08)"/>
+      <line x1="11" y1="43" x2="70" y2="43" stroke="rgba(255,102,0,.14)" stroke-width="1"/>
+      <text x="12" y="52" font-family="monospace" font-size="7" fill="rgba(255,102,0,.45)">Notion Pack  $29</text>
+      <!-- Stars -->
+      <text x="12" y="42" font-family="monospace" font-size="6" fill="rgba(255,200,0,.5)">★★★★★</text>
+      <!-- Card 2 -->
+      <rect x="82" y="6"  width="66" height="52" rx="2" fill="rgba(255,102,0,.05)" stroke="rgba(255,102,0,.18)" stroke-width="1"/>
+      <rect x="85" y="9"  width="60" height="28" rx="1" fill="rgba(255,102,0,.07)"/>
+      <line x1="85" y1="43" x2="144" y2="43" stroke="rgba(255,102,0,.12)" stroke-width="1"/>
+      <text x="86" y="52" font-family="monospace" font-size="7" fill="rgba(255,102,0,.38)">Excel Kit   $19</text>
+      <text x="86" y="42" font-family="monospace" font-size="6" fill="rgba(255,200,0,.4)">★★★★☆</text>
+      <!-- Card 3 -->
+      <rect x="8"  y="64" width="66" height="52" rx="2" fill="rgba(255,102,0,.04)" stroke="rgba(255,102,0,.16)" stroke-width="1"/>
+      <rect x="11" y="67" width="60" height="28" rx="1" fill="rgba(255,102,0,.06)"/>
+      <line x1="11" y1="101" x2="70" y2="101" stroke="rgba(255,102,0,.1)" stroke-width="1"/>
+      <text x="12" y="110" font-family="monospace" font-size="7" fill="rgba(255,102,0,.35)">AI Bundle  $49</text>
+      <text x="12" y="100" font-family="monospace" font-size="6" fill="rgba(255,200,0,.45)">★★★★★</text>
+      <!-- Card 4 - NEW badge -->
+      <rect x="82" y="64" width="66" height="52" rx="2" fill="rgba(255,102,0,.06)" stroke="rgba(255,102,0,.3)"  stroke-width="1"/>
+      <rect x="85" y="67" width="60" height="28" rx="1" fill="rgba(255,102,0,.1)"/>
+      <rect x="124" y="62" width="22" height="9" rx="2" fill="rgba(255,102,0,.6)"/>
+      <text x="126" y="69" font-family="monospace" font-size="6" fill="rgba(255,255,255,.9)">NEW</text>
+      <line x1="85" y1="101" x2="144" y2="101" stroke="rgba(255,102,0,.14)" stroke-width="1"/>
+      <text x="86" y="110" font-family="monospace" font-size="7" fill="rgba(255,102,0,.42)">SEO Pack   $39</text>
+      <text x="86" y="100" font-family="monospace" font-size="6" fill="rgba(255,200,0,.35)">★★★☆☆</text>
+
+      <!-- Broadcast rings (right side, centered at 210,55) -->
+      <circle cx="212" cy="56" r="8"  fill="rgba(255,102,0,.5)" stroke="rgba(255,102,0,.7)" stroke-width="1.5"/>
+      <circle cx="212" cy="56" r="4"  fill="rgba(255,200,0,.8)"/>
+      <circle cx="212" cy="56" r="8"  fill="none" stroke="rgba(255,102,0,.45)" stroke-width="1">
+        <animate attributeName="r" from="12" to="52" dur="2.2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from=".55" to="0" dur="2.2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="212" cy="56" r="8" fill="none" stroke="rgba(255,102,0,.28)" stroke-width="1">
+        <animate attributeName="r" from="12" to="52" dur="2.2s" begin="0.9s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from=".35" to="0" dur="2.2s" begin="0.9s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="212" cy="56" r="8" fill="none" stroke="rgba(255,102,0,.15)" stroke-width="1">
+        <animate attributeName="r" from="12" to="52" dur="2.2s" begin="1.6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from=".2" to="0" dur="2.2s" begin="1.6s" repeatCount="indefinite"/>
+      </circle>
+      <text x="188" y="108" font-family="monospace" font-size="10" fill="rgba(255,102,0,.28)" letter-spacing="3">LIVE</text>
+      <line x1="160" y1="132" x2="264" y2="132" stroke="rgba(255,102,0,.1)" stroke-width="1"/>
     </svg>`,
 
-    analytics: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 265 170">
-        <rect x="14"  y="90"  width="28" height="64" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
-        <rect x="52"  y="62"  width="28" height="92" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
-        <rect x="90"  y="74"  width="28" height="80" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
-        <rect x="128" y="42"  width="28" height="112" rx="1" fill="rgba(0,229,255,.22)" stroke="rgba(0,229,255,.3)"  stroke-width="1"/>
-        <rect x="166" y="64"  width="28" height="90" rx="1" fill="rgba(0,229,255,.11)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
-        <rect x="204" y="82"  width="28" height="72" rx="1" fill="rgba(0,229,255,.15)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
-        <line x1="8" y1="154" x2="256" y2="154" stroke="rgba(0,229,255,.16)" stroke-width="1"/>
+    /* ── ANALYTICS  Data lab ── */
+    analytics: `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 270 190">
+      <!-- Y axis -->
+      <line x1="12" y1="4"   x2="12"  y2="128" stroke="rgba(0,229,255,.2)"  stroke-width="1"/>
+      <line x1="12" y1="128" x2="180" y2="128" stroke="rgba(0,229,255,.2)"  stroke-width="1"/>
+      <!-- Grid -->
+      <line x1="12" y1="28"  x2="180" y2="28"  stroke="rgba(0,229,255,.06)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="12" y1="56"  x2="180" y2="56"  stroke="rgba(0,229,255,.06)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="12" y1="84"  x2="180" y2="84"  stroke="rgba(0,229,255,.06)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="12" y1="112" x2="180" y2="112" stroke="rgba(0,229,255,.06)" stroke-width="1" stroke-dasharray="4 3"/>
+
+      <!-- Bars (6 bars, step=26) -->
+      <rect x="18"  y="88"  width="18" height="40" rx="1" fill="rgba(0,229,255,.16)" stroke="rgba(0,229,255,.3)"  stroke-width="1"/>
+      <rect x="44"  y="54"  width="18" height="74" rx="1" fill="rgba(0,229,255,.22)" stroke="rgba(0,229,255,.38)" stroke-width="1"/>
+      <rect x="70"  y="70"  width="18" height="58" rx="1" fill="rgba(0,229,255,.18)" stroke="rgba(0,229,255,.32)" stroke-width="1"/>
+      <rect x="96"  y="36"  width="18" height="92" rx="1" fill="rgba(0,229,255,.26)" stroke="rgba(0,229,255,.45)" stroke-width="1"/>
+      <rect x="122" y="60"  width="18" height="68" rx="1" fill="rgba(0,229,255,.2)"  stroke="rgba(0,229,255,.36)" stroke-width="1"/>
+      <rect x="148" y="44"  width="18" height="84" rx="1" fill="rgba(0,229,255,.24)" stroke="rgba(0,229,255,.42)" stroke-width="1"/>
+
+      <!-- Trend line over bars -->
+      <polyline points="27,92 53,58 79,74 105,40 131,64 157,48"
+          stroke="rgba(0,229,255,.7)" stroke-width="2" fill="none"/>
+      <circle cx="105" cy="40" r="4" fill="rgba(0,229,255,.7)"/>
+
+      <!-- KPI boxes (right side) -->
+      <rect x="190" y="4"  width="72" height="30" rx="2" fill="rgba(0,229,255,.05)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+      <text x="194" y="14" font-family="monospace" font-size="7"  fill="rgba(0,229,255,.4)">CONV. RATE</text>
+      <text x="194" y="27" font-family="monospace" font-size="12" fill="rgba(0,229,255,.7)" letter-spacing="1">3.8%</text>
+
+      <rect x="190" y="40" width="72" height="30" rx="2" fill="rgba(0,229,255,.05)" stroke="rgba(0,229,255,.22)" stroke-width="1"/>
+      <text x="194" y="50" font-family="monospace" font-size="7"  fill="rgba(0,229,255,.4)">AVG ORDER</text>
+      <text x="194" y="63" font-family="monospace" font-size="12" fill="rgba(0,229,255,.7)" letter-spacing="1">$34</text>
+
+      <rect x="190" y="76" width="72" height="30" rx="2" fill="rgba(0,229,255,.07)" stroke="rgba(0,229,255,.28)" stroke-width="1"/>
+      <text x="194" y="86" font-family="monospace" font-size="7"  fill="rgba(0,229,255,.45)">REVENUE</text>
+      <text x="194" y="99" font-family="monospace" font-size="12" fill="rgba(0,229,255,.75)" letter-spacing="1">$820</text>
+
+      <!-- Donut chart (bottom right) -->
+      <circle cx="226" cy="118" r="16" fill="none" stroke="rgba(0,229,255,.08)"  stroke-width="6"/>
+      <circle cx="226" cy="118" r="16" fill="none" stroke="rgba(0,229,255,.45)"  stroke-width="6" stroke-dasharray="50 51" stroke-dashoffset="25"/>
+      <circle cx="226" cy="118" r="16" fill="none" stroke="rgba(0,255,136,.35)"  stroke-width="6" stroke-dasharray="26 75" stroke-dashoffset="-25"/>
+      <circle cx="226" cy="118" r="16" fill="none" stroke="rgba(255,200,0,.28)"  stroke-width="6" stroke-dasharray="15 86" stroke-dashoffset="-51"/>
+      <text x="221" y="121" font-family="monospace" font-size="7" fill="rgba(0,229,255,.55)">SEG</text>
+
+      <!-- Volume histogram at bottom -->
+      <rect x="18"  y="142" width="18" height="10" fill="rgba(0,229,255,.18)"/>
+      <rect x="44"  y="138" width="18" height="14" fill="rgba(0,229,255,.22)"/>
+      <rect x="70"  y="140" width="18" height="12" fill="rgba(0,229,255,.18)"/>
+      <rect x="96"  y="135" width="18" height="17" fill="rgba(0,229,255,.28)"/>
+      <rect x="122" y="139" width="18" height="13" fill="rgba(0,229,255,.2)"/>
+      <rect x="148" y="136" width="18" height="16" fill="rgba(0,229,255,.24)"/>
     </svg>`,
 };
 
-function buildRoom(id, ag, status) {
-    const m  = META[id] || { role:ag.name||id, icon:'◈', th:'analyst', xp:0 };
-    const th = m.th;
-    const gh = GLOWH[th] || '#00ffff';
-    const walk = status === 'busy';
+function buildRoom(id, ag) {
+    const m    = META[id] || { role: ag.name || id, icon:'◈', th:'analyst' };
+    const th   = m.th;
+    const gh   = GLOWH[th] || '#00ffff';
+    const busy = ag.status === 'working';
     const deco = DECO[th] || '';
+    const taskText = ag.current_task
+        ? ag.current_task.slice(0, 55) + (ag.current_task.length > 55 ? '…' : '')
+        : (ag.log && ag.log[0] ? ag.log[0].slice(0, 55) : '— standby —');
+    const xpPct = ag.xp_pct || 0;
     return `
     <div class="rcard t-${th}" id="room-${id}" onclick="scrollToRoom('${id}')">
         <div class="co tl"></div><div class="co tr"></div>
@@ -599,56 +996,64 @@ function buildRoom(id, ag, status) {
         <div class="rchdr">
             <span class="rlbl">${m.icon} ${id.toUpperCase()}</span>
             <div class="rst">
-                <div class="rring ${walk?'busy':''}"></div>
-                <span>${walk?'BUSY':'IDLE'}</span>
+                <div class="rring ${busy?'busy':''}"></div>
+                <span>${busy?'WORKING':'IDLE'}</span>
             </div>
         </div>
         <div class="rint">
             ${deco}
             <div class="rwall"></div>
             <div class="rfloor"></div>
-            <div class="hum ${walk?'walking':'idle'}" style="--glow:${gh}">
+            <div class="hum ${busy?'walking':'idle'}" style="--glow:${gh}">
                 <div class="hhd"></div>
                 <div class="hto"></div>
                 <div class="hlgs"><div class="hll"></div><div class="hlr"></div></div>
             </div>
         </div>
         <div class="rfoot">
-            <div class="rfn">${ag.name||id}</div>
+            <div class="rfn">${ag.name || id} <span style="opacity:.45;font-size:10px">LV.${ag.level||1} · ${ag.tasks_done||0} tasks</span></div>
             <div class="rfr">${m.role}</div>
-            <div class="rfl ${walk?'live':''}">${walk?'▶ task in corso..':'— standby —'}</div>
+            <div class="rfl ${busy?'live':''}" title="${ag.current_task||''}">${busy?'▶ ':''}${taskText}</div>
+            <div class="axp" style="margin-top:4px"><div class="axpf" style="width:${xpPct}%"></div></div>
         </div>
     </div>`;
 }
 
-function renderCrew(agents) {
+function renderCrew(agents, totalXp, tasksDone) {
     const entries = Object.entries(agents);
     const n = entries.length;
     document.getElementById('badge').textContent = n;
     document.getElementById('hdr-ag').textContent = `${n}/8 ACTIVE`;
-    const pct = Math.min(100, Math.round(n/8*100));
-    document.getElementById('crew-fill').style.width = pct+'%';
-    document.getElementById('crew-nums').textContent  = `${n} / 8`;
-    document.getElementById('crew-pct').textContent   = pct+'%';
+    const crewPct = Math.min(100, Math.round(n / 8 * 100));
+    document.getElementById('crew-fill').style.width = crewPct + '%';
+    document.getElementById('crew-nums').textContent = `${n} / 8`;
+    document.getElementById('crew-pct').textContent  = crewPct + '%';
+
+    /* Commander bar: total XP across all agents */
+    const cmdrLv  = Math.max(...entries.map(([,a]) => a.level || 1));
+    const xpPct   = Math.min(100, Math.round((totalXp || 0) / 10));
+    document.querySelector('.cmdr-lv').textContent         = `LV.${cmdrLv}`;
+    document.querySelector('.xpfill').style.width          = xpPct + '%';
+    document.querySelector('.xptxt').textContent           = `${totalXp || 0} XP TOTAL · ${tasksDone || 0} tasks`;
+
     document.getElementById('clist').innerHTML = entries.map(([id, ag]) => {
-        const m   = META[id] || { role:ag.name||id, icon:'◈', xp:0 };
-        const lv  = Math.floor(m.xp/100)+1;
-        const pct = Math.min(100, Math.round(m.xp/500*100));
+        const m    = META[id] || { role: ag.name || id, icon:'◈' };
+        const busy = ag.status === 'working';
         return `<div class="citem" onclick="scrollToRoom('${id}')">
             <div class="ctop">
-                <div class="cdot d-i"></div>
+                <div class="cdot ${busy ? 'd-b' : 'd-i'}"></div>
                 <span class="cid">${id}</span>
-                <span class="clv">LV.${lv}</span>
+                <span class="clv">LV.${ag.level || 1}</span>
             </div>
-            <div class="crole">${m.role}</div>
-            <div class="axp"><div class="axpf" style="width:${pct}%"></div></div>
+            <div class="crole">${m.role} ${ag.queue_size > 0 ? `<span style="color:#ff6600;font-size:9px">[${ag.queue_size} queued]</span>` : ''}</div>
+            <div class="axp"><div class="axpf" style="width:${ag.xp_pct || 0}%"></div></div>
         </div>`;
     }).join('');
 }
 
 function renderRooms(agents) {
     document.getElementById('rwrap').innerHTML =
-        Object.entries(agents).map(([id,ag]) => buildRoom(id, ag, 'idle')).join('');
+        Object.entries(agents).map(([id, ag]) => buildRoom(id, ag)).join('');
 }
 
 function scrollToRoom(id) {
@@ -678,21 +1083,25 @@ document.querySelectorAll('.nbtn').forEach(b => {
     });
 });
 
-/* API refresh */
-async function fetchAgents() {
-    const r = await fetch(`${API}/api/agents`); const d = await r.json();
-    renderCrew(d); renderRooms(d);
-}
-async function fetchStatus() {
-    await fetch(`${API}/api/status`);
+/* Live data polling from Python agents service */
+async function refresh() {
+    try {
+        const r = await fetch(`${AGENTS_API}/status`);
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        renderCrew(d.agents, d.total_xp, d.tasks_done);
+        renderRooms(d.agents);
+    } catch (e) {
+        document.getElementById('rtag').textContent = '✗ offline';
+    }
 }
 
 let cd = 5;
-async function refresh() {
-    try { await Promise.all([fetchAgents(), fetchStatus()]); } catch(e){}
-    cd = 5;
-}
-setInterval(()=>{ cd--; document.getElementById('rtag').textContent=`↻ ${cd}s`; if(cd<=0) refresh(); }, 1000);
+setInterval(() => {
+    cd--;
+    document.getElementById('rtag').textContent = `↻ ${cd}s`;
+    if (cd <= 0) { refresh(); cd = 5; }
+}, 1000);
 refresh();
 </script>
 </body>
