@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import ColonyCanvas from './components/ColonyCanvas.jsx'
-import LeftPanel    from './components/LeftPanel.jsx'
-import RightPanel   from './components/RightPanel.jsx'
-import TopHUD       from './components/TopHUD.jsx'
+import AgentGrid   from './components/AgentGrid.jsx'
+import LeftPanel   from './components/LeftPanel.jsx'
+import RightPanel  from './components/RightPanel.jsx'
+import TopHUD      from './components/TopHUD.jsx'
 
 const POLL_MS = 5000
 
 export default function App() {
-  const [data,    setData]    = useState(null)
-  const [status,  setStatus]  = useState('connecting')
+  const [data,   setData]   = useState(null)
+  const [status, setStatus] = useState('connecting')
   const timerRef = useRef(null)
 
   const poll = async () => {
@@ -32,7 +32,7 @@ export default function App() {
 
   return (
     <div className="colony-root">
-      <TopHUD data={data} />
+      <TopHUD data={data} status={status} />
 
       <div className="colony-body">
         <motion.div
@@ -44,21 +44,7 @@ export default function App() {
           <LeftPanel data={data} />
         </motion.div>
 
-        {/* Center world */}
-        <div className="colony-world">
-          <ColonyCanvas agents={data} />
-
-          {/* Connection overlay badge */}
-          <motion.div
-            className={`conn-badge conn-${status}`}
-            animate={status === 'offline' ? { opacity: [1, 0.3, 1] } : {}}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
-            {status === 'online'      && '◉ API CONNECTED'}
-            {status === 'offline'     && '◌ API OFFLINE'}
-            {status === 'connecting'  && '◎ CONNECTING…'}
-          </motion.div>
-        </div>
+        <AgentGrid agents={data} />
 
         <motion.div
           className="panel-wrap"

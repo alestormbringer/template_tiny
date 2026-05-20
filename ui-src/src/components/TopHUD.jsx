@@ -17,7 +17,7 @@ function Metric({ label, value, color = '#a0a0cc', blink = false }) {
   )
 }
 
-export default function TopHUD({ data }) {
+export default function TopHUD({ data, status }) {
   const [shipTime, setShipTime] = useState('')
 
   useEffect(() => {
@@ -54,7 +54,6 @@ export default function TopHUD({ data }) {
 
       {/* Metrics */}
       <div className="hud-metrics">
-        <Metric label="SHIP TIME"   value={shipTime}          color="#00ffff" />
         <Metric label="AGENTS"      value={`${agents.length} ONLINE`}  color="#00ff88" />
         <Metric label="ACTIVE"      value={`${working} WORKING`}       color={working > 0 ? '#ff6600' : '#5858a0'} blink={working > 0} />
         <Metric label="TASKS DONE"  value={tasksDone}         color="#aa44ff" />
@@ -62,16 +61,17 @@ export default function TopHUD({ data }) {
         <Metric label="COLONY XP"   value={totalXP}           color="#ff44aa" />
       </div>
 
-      {/* Status pulse */}
-      <div className="hud-status">
+      {/* Status + time */}
+      <div className="hud-right">
+        <span className="hud-time">{shipTime}</span>
         <motion.span
           className="status-dot"
           animate={{ opacity: [1, 0.2, 1], scale: [1, 1.3, 1] }}
           transition={{ repeat: Infinity, duration: 1.6 }}
-          style={{ background: working > 0 ? '#00ff88' : '#5858a0' }}
+          style={{ background: status === 'offline' ? '#ff4444' : working > 0 ? '#00ff88' : '#555588' }}
         />
         <span className="status-text">
-          {working > 0 ? 'COLONY ACTIVE' : 'STANDBY'}
+          {status === 'offline' ? 'OFFLINE' : working > 0 ? 'ACTIVE' : 'STANDBY'}
         </span>
       </div>
     </header>
