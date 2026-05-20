@@ -110,10 +110,13 @@ AGENTS: Dict[str, dict] = {
         "color": "#00aaff", "status": "idle", "current_task": None,
         "tasks_done": 0, "log": [],
         "system": (
-            "Sei responsabile della pipeline di pubblicazione su Gumroad. "
-            "Verifichi che ogni prodotto sia pronto (file, thumbnail, copy, prezzo). "
-            "Prepari checklist di pubblicazione, gestisci pricing e sconti, "
-            "documenti l'URL del prodotto dopo la pubblicazione."
+            "Sei responsabile della pubblicazione su Gumroad. "
+            "Ricevi la descrizione di un prodotto digitale e devi strutturarlo per la pubblicazione. "
+            "Rispondi SOLO con un JSON valido con questi campi:\n"
+            '{"name": "titolo prodotto (max 60 chars)", "price_cents": 1500, '
+            '"description": "descrizione completa 300-500 parole", '
+            '"tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]}\n'
+            "Il prezzo è in centesimi (€15 = 1500). Minimo €5 (500), massimo €49 (4900)."
         ),
     },
     "analytics": {
@@ -230,6 +233,25 @@ async def gumroad_get_products() -> dict:
         return {"error": str(e)}
 
 
+async def gumroad_create_product(name: str, price_cents: int, description: str, tags: list = None) -> dict:
+    if not GUMROAD_KEY:
+        return {"error": "No Gumroad key"}
+    try:
+        async with aiohttp.ClientSession() as sess:
+            payload = {"name": name, "price": price_cents, "description": description}
+            if tags:
+                payload["tags"] = ",".join(tags[:10])
+            async with sess.post(
+                "https://api.gumroad.com/v2/products",
+                headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
+                data=payload,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def searxng_search(query: str) -> str:
     try:
         async with aiohttp.ClientSession() as sess:
@@ -311,6 +333,28 @@ async def execute_task(aid: str, task: str):
     try:
         result = await llm(a["system"], user_prompt + enrichment, max_tokens=900)
 
+        # Publish to Gumroad if publisher
+        if aid == "publisher" and GUMROAD_KEY:
+            try:
+                json_match = re.search(r"\{.*?\}", result, re.DOTALL)
+                if json_match:
+                    prod = json.loads(json_match.group())
+                    gum_resp = await gumroad_create_product(
+                        name=prod.get("name", task[:60]),
+                        price_cents=int(prod.get("price_cents", 1500)),
+                        description=prod.get("description", result[:1000]),
+                        tags=prod.get("tags", []),
+                    )
+                    if "product" in gum_resp:
+                        url = gum_resp["product"].get("short_url", "")
+                        agent_log(aid, f"🚀 Pubblicato su Gumroad: {url}")
+                    else:
+                        agent_log(aid, f"⚠ Gumroad error: {gum_resp.get('message', str(gum_resp))}")
+                else:
+                    agent_log(aid, "⚠ JSON prodotto non trovato nella risposta LLM")
+            except Exception as e:
+                agent_log(aid, f"⚠ Errore pubblicazione: {e}")
+
         # Persist to Notion if notion-creator
         if aid == "notion-creator" and NOTION_KEY:
             title = task[:60]
@@ -351,7 +395,9 @@ async def orchestrator_loop():
         prompt = (
             "Genera esattamente 6 task concreti per produrre e vendere template digitali su Gumroad. "
             "Distribuisci tra gli agenti: market-analyst, notion-creator, finance-creator, "
-            "business-creator, copywriter, analytics. "
+            "business-creator, copywriter, publisher, analytics. "
+            "Per il publisher assegna task del tipo: 'Pubblica su Gumroad: [nome prodotto], "
+            "prezzo €[X], [breve descrizione del prodotto e del suo pubblico target]'. "
             "I task devono essere specifici, pratici, orientati al business. "
             "Rispondi SOLO con un JSON array valido."
         )
