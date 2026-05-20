@@ -10,23 +10,34 @@ services:
     networks:
       - tinyagi-net
 
-  tinyagi:
+  agents:
     build:
-      context: .
-      dockerfile: docker/Dockerfile
-    container_name: tinyagi
+      context: ./services
+      dockerfile: Dockerfile
+    container_name: tinyagi-agents
     restart: unless-stopped
     env_file:
       - .env
     volumes:
-      - ./config:/root/.tinyagi
-      - tinyagi-data:/root/workspace
+      - agents-data:/root/workspace
     ports:
-      - "${TINYAGI_PORT:-8090}:3777"
+      - "${TINYAGI_PORT:-8090}:3778"
     networks:
       - tinyagi-net
     depends_on:
       - ollama
+      - searxng
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+    volumes:
+      - ./searxng:/etc/searxng
+    networks:
+      - tinyagi-net
 
   dashboard:
     image: nginx:alpine
@@ -40,7 +51,7 @@ services:
     networks:
       - tinyagi-net
     depends_on:
-      - tinyagi
+      - agents
 
 networks:
   tinyagi-net:
@@ -48,4 +59,4 @@ networks:
 
 volumes:
   ollama-data:
-  tinyagi-data:
+  agents-data:

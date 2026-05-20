@@ -474,23 +474,20 @@
 </div>
 
 <script>
-const API = `${location.protocol}//${location.hostname}:8090`;
+/* Use relative path — nginx proxies /agents/ to the Python service */
+const AGENTS_API = '/agents';
 
-/* XP hierarchy — coherent progression matching pipeline seniority:
-   LV.4 = master orchestrator (300-399 xp)
-   LV.3 = senior specialists  (200-299 xp)
-   LV.2 = mid-level creators  (100-199 xp)
-   LV.1 = junior creators     (0-99 xp)   */
+/* Static metadata: theme, icon, role label */
 const META = {
-    'tinyagi':          { role:'Orchestratore',        icon:'◈', th:'tinyagi',   xp:350 },
-    'market-analyst':   { role:'Market Analysis',      icon:'◎', th:'analyst',   xp:215 },
-    'analytics':        { role:'Sales Analytics',      icon:'◐', th:'analytics', xp:245 },
-    'publisher':        { role:'Gumroad Publisher',    icon:'▲', th:'publish',   xp:175 },
-    'finance-creator':  { role:'Finance / Excel',      icon:'◆', th:'finance',   xp:155 },
-    'copywriter':       { role:'SEO Copywriting',      icon:'◌', th:'copy',      xp:135 },
-    'business-creator': { role:'Business / Freelance', icon:'◉', th:'business',  xp:115 },
-    'notion-creator':   { role:'Notion Templates',     icon:'▣', th:'notion',    xp:85  },
-    'template-creator': { role:'Template Creator',     icon:'▣', th:'notion',    xp:75  },
+    'tinyagi':          { role:'Orchestratore',        icon:'◈', th:'tinyagi'   },
+    'market-analyst':   { role:'Market Analysis',      icon:'◎', th:'analyst'   },
+    'analytics':        { role:'Sales Analytics',      icon:'◐', th:'analytics' },
+    'publisher':        { role:'Gumroad Publisher',    icon:'▲', th:'publish'   },
+    'finance-creator':  { role:'Finance / Excel',      icon:'◆', th:'finance'   },
+    'copywriter':       { role:'SEO Copywriting',      icon:'◌', th:'copy'      },
+    'business-creator': { role:'Business / Freelance', icon:'◉', th:'business'  },
+    'notion-creator':   { role:'Notion Templates',     icon:'▣', th:'notion'    },
+    'template-creator': { role:'Template Creator',     icon:'▣', th:'notion'    },
 };
 
 const GLOWH = {
@@ -982,12 +979,16 @@ const DECO = {
     </svg>`,
 };
 
-function buildRoom(id, ag, status) {
-    const m  = META[id] || { role:ag.name||id, icon:'◈', th:'analyst', xp:0 };
-    const th = m.th;
-    const gh = GLOWH[th] || '#00ffff';
-    const walk = status === 'busy';
+function buildRoom(id, ag) {
+    const m    = META[id] || { role: ag.name || id, icon:'◈', th:'analyst' };
+    const th   = m.th;
+    const gh   = GLOWH[th] || '#00ffff';
+    const busy = ag.status === 'working';
     const deco = DECO[th] || '';
+    const taskText = ag.current_task
+        ? ag.current_task.slice(0, 55) + (ag.current_task.length > 55 ? '…' : '')
+        : (ag.log && ag.log[0] ? ag.log[0].slice(0, 55) : '— standby —');
+    const xpPct = ag.xp_pct || 0;
     return `
     <div class="rcard t-${th}" id="room-${id}" onclick="scrollToRoom('${id}')">
         <div class="co tl"></div><div class="co tr"></div>
@@ -995,56 +996,64 @@ function buildRoom(id, ag, status) {
         <div class="rchdr">
             <span class="rlbl">${m.icon} ${id.toUpperCase()}</span>
             <div class="rst">
-                <div class="rring ${walk?'busy':''}"></div>
-                <span>${walk?'BUSY':'IDLE'}</span>
+                <div class="rring ${busy?'busy':''}"></div>
+                <span>${busy?'WORKING':'IDLE'}</span>
             </div>
         </div>
         <div class="rint">
             ${deco}
             <div class="rwall"></div>
             <div class="rfloor"></div>
-            <div class="hum ${walk?'walking':'idle'}" style="--glow:${gh}">
+            <div class="hum ${busy?'walking':'idle'}" style="--glow:${gh}">
                 <div class="hhd"></div>
                 <div class="hto"></div>
                 <div class="hlgs"><div class="hll"></div><div class="hlr"></div></div>
             </div>
         </div>
         <div class="rfoot">
-            <div class="rfn">${ag.name||id}</div>
+            <div class="rfn">${ag.name || id} <span style="opacity:.45;font-size:10px">LV.${ag.level||1} · ${ag.tasks_done||0} tasks</span></div>
             <div class="rfr">${m.role}</div>
-            <div class="rfl ${walk?'live':''}">${walk?'▶ task in corso..':'— standby —'}</div>
+            <div class="rfl ${busy?'live':''}" title="${ag.current_task||''}">${busy?'▶ ':''}${taskText}</div>
+            <div class="axp" style="margin-top:4px"><div class="axpf" style="width:${xpPct}%"></div></div>
         </div>
     </div>`;
 }
 
-function renderCrew(agents) {
+function renderCrew(agents, totalXp, tasksDone) {
     const entries = Object.entries(agents);
     const n = entries.length;
     document.getElementById('badge').textContent = n;
     document.getElementById('hdr-ag').textContent = `${n}/8 ACTIVE`;
-    const pct = Math.min(100, Math.round(n/8*100));
-    document.getElementById('crew-fill').style.width = pct+'%';
-    document.getElementById('crew-nums').textContent  = `${n} / 8`;
-    document.getElementById('crew-pct').textContent   = pct+'%';
+    const crewPct = Math.min(100, Math.round(n / 8 * 100));
+    document.getElementById('crew-fill').style.width = crewPct + '%';
+    document.getElementById('crew-nums').textContent = `${n} / 8`;
+    document.getElementById('crew-pct').textContent  = crewPct + '%';
+
+    /* Commander bar: total XP across all agents */
+    const cmdrLv  = Math.max(...entries.map(([,a]) => a.level || 1));
+    const xpPct   = Math.min(100, Math.round((totalXp || 0) / 10));
+    document.querySelector('.cmdr-lv').textContent         = `LV.${cmdrLv}`;
+    document.querySelector('.xpfill').style.width          = xpPct + '%';
+    document.querySelector('.xptxt').textContent           = `${totalXp || 0} XP TOTAL · ${tasksDone || 0} tasks`;
+
     document.getElementById('clist').innerHTML = entries.map(([id, ag]) => {
-        const m   = META[id] || { role:ag.name||id, icon:'◈', xp:0 };
-        const lv  = Math.floor(m.xp/100)+1;
-        const pct = Math.min(100, Math.round((m.xp % 100)));
+        const m    = META[id] || { role: ag.name || id, icon:'◈' };
+        const busy = ag.status === 'working';
         return `<div class="citem" onclick="scrollToRoom('${id}')">
             <div class="ctop">
-                <div class="cdot d-i"></div>
+                <div class="cdot ${busy ? 'd-b' : 'd-i'}"></div>
                 <span class="cid">${id}</span>
-                <span class="clv">LV.${lv}</span>
+                <span class="clv">LV.${ag.level || 1}</span>
             </div>
-            <div class="crole">${m.role}</div>
-            <div class="axp"><div class="axpf" style="width:${pct}%"></div></div>
+            <div class="crole">${m.role} ${ag.queue_size > 0 ? `<span style="color:#ff6600;font-size:9px">[${ag.queue_size} queued]</span>` : ''}</div>
+            <div class="axp"><div class="axpf" style="width:${ag.xp_pct || 0}%"></div></div>
         </div>`;
     }).join('');
 }
 
 function renderRooms(agents) {
     document.getElementById('rwrap').innerHTML =
-        Object.entries(agents).map(([id,ag]) => buildRoom(id, ag, 'idle')).join('');
+        Object.entries(agents).map(([id, ag]) => buildRoom(id, ag)).join('');
 }
 
 function scrollToRoom(id) {
@@ -1074,21 +1083,25 @@ document.querySelectorAll('.nbtn').forEach(b => {
     });
 });
 
-/* API refresh */
-async function fetchAgents() {
-    const r = await fetch(`${API}/api/agents`); const d = await r.json();
-    renderCrew(d); renderRooms(d);
-}
-async function fetchStatus() {
-    await fetch(`${API}/api/status`);
+/* Live data polling from Python agents service */
+async function refresh() {
+    try {
+        const r = await fetch(`${AGENTS_API}/status`);
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        renderCrew(d.agents, d.total_xp, d.tasks_done);
+        renderRooms(d.agents);
+    } catch (e) {
+        document.getElementById('rtag').textContent = '✗ offline';
+    }
 }
 
 let cd = 5;
-async function refresh() {
-    try { await Promise.all([fetchAgents(), fetchStatus()]); } catch(e){}
-    cd = 5;
-}
-setInterval(()=>{ cd--; document.getElementById('rtag').textContent=`↻ ${cd}s`; if(cd<=0) refresh(); }, 1000);
+setInterval(() => {
+    cd--;
+    document.getElementById('rtag').textContent = `↻ ${cd}s`;
+    if (cd <= 0) { refresh(); cd = 5; }
+}, 1000);
 refresh();
 </script>
 </body>
