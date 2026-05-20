@@ -3,7 +3,15 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-if [ ! -f .env ]; then echo "ERRORE: .env non trovato. Esegui: cp .env.example .env"; exit 1; fi
+if [ ! -f .env ]; then
+  echo "ERRORE: .env non trovato. Esegui: cp .env.example .env"
+  exit 1
+fi
+
+if [ ! -d tinyagi-src ]; then
+  echo "[0/3] Clonazione sorgente tinyAGI..."
+  git clone https://github.com/TinyAGI/tinyagi.git tinyagi-src
+fi
 
 source .env
 MODEL=${OLLAMA_MODEL:-llama3.1:8b}

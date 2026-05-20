@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-RUN git clone --depth=1 https://github.com/TinyAGI/tinyagi.git .
+COPY tinyagi-src/ .
 RUN npm install
 RUN npm run build
 RUN npm prune --omit=dev
