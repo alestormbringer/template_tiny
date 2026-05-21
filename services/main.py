@@ -48,12 +48,15 @@ AGENTS: Dict[str, dict] = {
         "color": "#00ffff", "status": "idle", "current_task": None,
         "tasks_done": 0, "log": [],
         "system": (
-            "You are the master orchestrator of an autonomous digital product business on Gumroad. "
-            "You manage a pipeline that produces Notion templates, Finance/Excel templates, and Business "
-            "templates for the worldwide English-speaking market (US, UK, Canada, Australia). "
-            "You follow a strict pipeline: market-analyst → creator → copywriter → publisher → analytics. "
-            "You analyze pipeline state and assign the correct next step to the right agent. "
-            "Be decisive and revenue-focused."
+            "You are the strategic orchestrator of an autonomous digital product pipeline on Gumroad. "
+            "You receive the current pipeline state and make high-level decisions: which vertical to prioritize, "
+            "whether to retry or skip stuck/errored products, and how to balance the pipeline across verticals. "
+            "The per-stage agent routing is handled automatically — your role is strategy, not micro-management. "
+            "Output only a valid JSON object:\n"
+            '{"priority_vertical":"notion|finance|business|all",'
+            '"retry_products":["prod_id_if_any"],'
+            '"skip_products":["prod_id_if_any"],'
+            '"reasoning":"one sentence explaining the decision"}'
         ),
     },
     "market-analyst": {
@@ -593,6 +596,28 @@ async def execute_task(aid: str, task: str):
         a["current_task"] = None
 
 
+# ── Orchestrator strategic decision ──────────────────────────────────────────
+async def orchestrator_decide(actions: list) -> dict:
+    """Ask the LLM orchestrator to make strategic pipeline decisions."""
+    state = {
+        "stats": pipeline.stats(),
+        "pending": [
+            {"id": a["product"]["id"], "vertical": a["product"]["vertical"], "stage": a["product"]["stage"]}
+            for a in actions
+        ],
+        "recent": pipeline.recent(3),
+    }
+    raw = await llm(
+        AGENTS["tinyagi"]["system"],
+        f"Current pipeline state:\n{json.dumps(state, indent=2)}\n\nMake your strategic decision.",
+        max_tokens=200,
+    )
+    decision = extract_json(raw)
+    if not decision:
+        decision = {"priority_vertical": "all", "retry_products": [], "skip_products": [], "reasoning": raw[:150]}
+    return decision
+
+
 # ── Orchestrator loop ─────────────────────────────────────────────────────────
 async def orchestrator_loop():
     await asyncio.sleep(8)
@@ -607,6 +632,38 @@ async def orchestrator_loop():
                 stats = pipeline.stats()
                 agent_log("tinyagi", f"✓ Pipeline nominal — {stats['done']} done, {stats['total'] - stats['done']} active")
             else:
+                # Strategic LLM decision: priority, retry, skip
+                decision   = await orchestrator_decide(actions)
+                priority   = decision.get("priority_vertical", "all")
+                skip_ids   = set(decision.get("skip_products") or [])
+                retry_ids  = set(decision.get("retry_products") or [])
+                reasoning  = decision.get("reasoning", "")
+
+                agent_log("tinyagi", f"🎯 {reasoning[:120]}")
+
+                # Unblock products flagged for retry
+                for pid in retry_ids:
+                    for p in pipeline.products:
+                        if p["id"] == pid:
+                            p["assigned"] = False
+                            pipeline.save()
+
+                # Apply priority filter (only if a specific vertical is chosen)
+                if priority != "all":
+                    filtered = [a for a in actions if a["product"]["vertical"] == priority]
+                    if filtered:
+                        actions = filtered
+
+                # Drop explicitly skipped products
+                actions = [a for a in actions if a["product"]["id"] not in skip_ids]
+
+                REASONING_LOG.insert(0, {
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "strategic_decision": decision,
+                    "actions_count": len(actions),
+                })
+                REASONING_LOG[:] = REASONING_LOG[:20]
+
                 for action in actions:
                     product  = action["product"]
                     pid      = product["id"]
