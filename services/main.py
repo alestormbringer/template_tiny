@@ -27,12 +27,13 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 OLLAMA_BASE  = os.getenv("OPENAI_BASE_URL",  "http://ollama:11434/v1")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL",      "llama3.1:8b")
+LLM_API_KEY  = os.getenv("OPENAI_API_KEY",   "ollama")
 GUMROAD_KEY  = os.getenv("GUMROAD_API_KEY",  "")
 NOTION_KEY   = os.getenv("NOTION_API_KEY",   "")
 SEARXNG_URL  = os.getenv("SEARXNG_BASE_URL", "http://searxng:8080")
 WORKSPACE    = Path("/root/workspace")
 
-client = AsyncOpenAI(api_key="ollama", base_url=OLLAMA_BASE)
+client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=OLLAMA_BASE)
 
 # ── Pipeline config ───────────────────────────────────────────────────────────
 VERTICALS      = ["notion", "finance", "business"]
