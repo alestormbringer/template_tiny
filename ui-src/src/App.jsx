@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import ColonyWorld from './components/ColonyWorld.jsx'
+import AgentGrid   from './components/AgentGrid.jsx'
 import LeftPanel   from './components/LeftPanel.jsx'
 import RightPanel  from './components/RightPanel.jsx'
 import TopHUD      from './components/TopHUD.jsx'
@@ -44,9 +44,7 @@ export default function App() {
           <LeftPanel data={data} />
         </motion.div>
 
-        <div className="colony-world">
-          <ColonyWorld agents={data} />
-        </div>
+        <AgentGrid agents={data} />
 
         <motion.div
           className="panel-wrap"
