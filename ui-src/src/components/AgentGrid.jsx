@@ -15,10 +15,10 @@ function useStarfield(ref) {
     const ctx = canvas.getContext('2d')
     let raf
 
-    const stars = Array.from({ length: 200 }, () => ({
+    const stars = Array.from({ length: 220 }, () => ({
       x: Math.random() * 2000,
       y: Math.random() * 2000,
-      r: Math.random() * 1.2 + 0.2,
+      r: Math.random() * 1.4 + 0.2,
       a: Math.random(),
       speed: Math.random() * 0.003 + 0.001,
     }))
@@ -38,15 +38,18 @@ function useStarfield(ref) {
       const { width: w, height: h } = canvas
       ctx.clearRect(0, 0, w, h)
 
-      // Nebula blobs
+      // Nebula blobs — deep purple/blue
       const blobs = [
-        { x: w * 0.3, y: h * 0.4, r: w * 0.3, c: 'rgba(30,10,70,' },
-        { x: w * 0.75, y: h * 0.6, r: w * 0.25, c: 'rgba(0,20,60,' },
+        { x: w * 0.20, y: h * 0.30, r: w * 0.35, c: 'rgba(70,30,120,' },
+        { x: w * 0.85, y: h * 0.70, r: w * 0.30, c: 'rgba(40,30,140,' },
+        { x: w * 0.55, y: h * 0.50, r: w * 0.40, c: 'rgba(100,30,140,' },
+        { x: w * 0.10, y: h * 0.85, r: w * 0.25, c: 'rgba(30,40,110,' },
       ]
       blobs.forEach(b => {
         const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r)
-        g.addColorStop(0, b.c + '0.18)')
-        g.addColorStop(1, b.c + '0)')
+        g.addColorStop(0,   b.c + '0.38)')
+        g.addColorStop(0.5, b.c + '0.15)')
+        g.addColorStop(1,   b.c + '0)')
         ctx.fillStyle = g
         ctx.beginPath()
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
@@ -57,7 +60,7 @@ function useStarfield(ref) {
       const t = Date.now() * 0.001
       stars.forEach(s => {
         const alpha = (Math.sin(t * s.speed * 100 + s.a * 10) * 0.4 + 0.5) * s.a
-        ctx.fillStyle = `rgba(180,200,255,${alpha})`
+        ctx.fillStyle = `rgba(200,210,255,${alpha})`
         ctx.beginPath()
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
         ctx.fill()
@@ -86,7 +89,7 @@ export default function AgentGrid({ agents }) {
       {/* Starfield */}
       <canvas ref={starRef} className="starfield" />
 
-      {/* Grid */}
+      {/* Grid 4×2 */}
       <motion.div
         className="agent-grid"
         initial={{ opacity: 0 }}
@@ -94,13 +97,7 @@ export default function AgentGrid({ agents }) {
         transition={{ duration: 0.8, delay: 0.2 }}
       >
         {AGENT_ORDER.map((id, i) => (
-          <motion.div key={id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05 * i }}
-          >
-            <AgentRoom id={id} agent={apiAgents[id] || null} />
-          </motion.div>
+          <AgentRoom key={id} id={id} agent={apiAgents[id] || null} />
         ))}
       </motion.div>
     </div>
