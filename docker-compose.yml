@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - tinyagi-net
+
+  agents:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+    container_name: tinyagi-agents
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - agents-data:/root/workspace
+    ports:
+      - "${TINYAGI_PORT:-8090}:3778"
+    networks:
+      - tinyagi-net
+    depends_on:
+      - ollama
+      - searxng
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+    volumes:
+      - ./searxng:/etc/searxng
+    networks:
+      - tinyagi-net
+
+  dashboard:
+    image: nginx:alpine
+    container_name: tinyagi-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui:/usr/share/nginx/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - tinyagi-net
+    depends_on:
+      - agents
+
+networks:
+  tinyagi-net:
+    driver: bridge
+
+volumes:
+  ollama-data:
+  agents-data:
