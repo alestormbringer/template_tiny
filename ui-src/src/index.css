@@ -474,6 +474,34 @@ html, body, #root {
   animation: roomBlink 0.9s ease-in-out infinite;
 }
 
+/* ─── Animated SVG character ─────────────────────────────────────────────── */
+.room-char {
+  position: absolute;
+  width: 13%;
+  max-width: 56px;
+  min-width: 28px;
+  z-index: 4;
+  /* smooth movement between idle and busy positions */
+  transition: bottom 0.75s cubic-bezier(0.4,0,0.2,1),
+              left   0.75s cubic-bezier(0.4,0,0.2,1);
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.75));
+  pointer-events: none;
+}
+.room-char--idle {
+  animation: charIdleBob 1.4s ease-in-out infinite alternate;
+}
+.room-char--busy {
+  animation: charBusyBob 0.7s ease-in-out infinite alternate;
+}
+@keyframes charIdleBob {
+  from { transform: translateY(0px) rotate(-1deg); }
+  to   { transform: translateY(-3px) rotate(1deg); }
+}
+@keyframes charBusyBob {
+  from { transform: translateY(0px) rotate(-2deg) scale(1); }
+  to   { transform: translateY(-5px) rotate(2deg) scale(1.04); }
+}
+
 /* ─── Room footer overlay ─────────────────────────────────────────────────── */
 .room-ftr {
   position: absolute;
