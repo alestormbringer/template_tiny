@@ -318,26 +318,49 @@ def extract_json(text: str) -> Optional[dict]:
 
 def recover_copy(raw: str) -> dict:
     """Best-effort field extraction when the LLM didn't return valid JSON."""
+    # Title: JSON-style first, then labeled text (SEO TITLE: / TITLE: / 1) ...)
     title = ""
     m = re.search(r'"title"\s*:\s*"([^"]{3,80})"', raw)
     if m:
         title = m.group(1)
+    if not title:
+        m = re.search(r'(?:SEO\s+)?TITLE[:\s]+(.{3,80}?)(?:\n|$)', raw, re.IGNORECASE)
+        if m:
+            title = m.group(1).strip().strip('"')
+    if not title:
+        m = re.search(r'1\)\s*(.{3,80}?)(?:\n|$)', raw)
+        if m:
+            title = m.group(1).strip().strip('"')
 
-    price = 29
+    # Price
+    price = 12
     m = re.search(r'"price"\s*:\s*(\d+)', raw)
     if m:
         v = int(m.group(1))
-        price = v if 5 <= v <= 200 else (v / 100 if v >= 500 else 29)
+        price = v if 5 <= v <= 200 else (v / 100 if v >= 500 else 12)
 
+    # Description: JSON-style first, then labeled text
     desc = ""
     m = re.search(r'"description"\s*:\s*"(.*?)"(?=\s*,\s*")', raw, re.DOTALL)
     if m:
         desc = m.group(1).replace('\\n', '\n')
     if not desc:
+        m = re.search(
+            r'(?:PRODUCT\s+)?DESCRIPTION[:\s]+(.*?)(?=\n[A-Z0-9]|\Z)',
+            raw, re.DOTALL | re.IGNORECASE,
+        )
+        if m:
+            desc = m.group(1).strip()
+    if not desc:
         desc = raw[:600]
 
-    tags = re.findall(r'"([A-Za-z][A-Za-z0-9 \-]{2,25})"', raw)
-    tags = list(dict.fromkeys(tags))[:10]
+    # Tags: labeled text first, then JSON-style quoted strings
+    tags: list = []
+    m = re.search(r'(?:SEO\s+)?TAGS?[:\s]+(.*?)(?:\n[A-Z]|\Z)', raw, re.DOTALL | re.IGNORECASE)
+    if m:
+        tags = [t.strip() for t in m.group(1).split(',') if t.strip()][:13]
+    if not tags:
+        tags = list(dict.fromkeys(re.findall(r'"([A-Za-z][A-Za-z0-9 \-]{2,25})"', raw)))[:13]
 
     return {
         "title":         title or "Digital Template",
@@ -412,54 +435,63 @@ async def build_stage_task(product: dict):
 
     if stage == "RESEARCH":
         search_hint = await searxng_search(
-            f"best selling {vertical} templates Gumroad site:gumroad.com 2024"
+            f"best selling {vertical} templates Gumroad 2024"
         )
         prompt = (
-            f"Research the worldwide {vertical} digital template market on Gumroad and Etsy.\n"
-            f"Find ONE highly profitable niche right now for English-speaking customers.\n"
+            f"Research the {vertical} digital template market on Gumroad and Etsy.\n"
+            f"Find ONE profitable niche for English-speaking customers. Price range $9-$15.\n"
             f"Web context:\n{search_hint}\n\n"
-            f"Output a complete JSON research report. Focus on $15-49 price range, low-medium competition."
+            f"Output ONLY a valid JSON object:\n"
+            f'{{"product_name":"string","target_audience":"string","price":12,'
+            f'"keywords":["k1","k2","k3"],"rationale":"string"}}'
         )
         return "market-analyst", prompt, "research"
 
     elif stage == "CREATION":
         agent  = VERTICAL_AGENT[vertical]
         prompt = (
-            f"Design a complete professional {vertical} template based on this market research:\n\n"
+            f"Design a complete {vertical} template based on this research:\n\n"
             f"Product: {research.get('product_name', 'Professional Template')}\n"
             f"Target audience: {research.get('target_audience', 'professionals')}\n"
             f"Keywords: {', '.join(research.get('keywords', []))}\n"
-            f"Price point: ${research.get('price', 29)}\n"
-            f"Why it will sell: {research.get('rationale', '')}\n\n"
-            f"Create a detailed, professional English template specification ready for sale. Output JSON."
+            f"Price: ${research.get('price', 12)}\n"
+            f"Rationale: {research.get('rationale', '')}\n\n"
+            f"Output ONLY a valid JSON object:\n"
+            f'{{"template_name":"string","tagline":"string","target_user":"string",'
+            f'"key_features":["f1","f2","f3"],"value_proposition":"string"}}'
         )
         return agent, prompt, "creation"
 
     elif stage == "COPYWRITING":
         features = creation.get("key_features", creation.get("features", []))
         prompt   = (
-            f"Write a complete Gumroad product listing in English for this {vertical} template:\n\n"
+            f"Write a Gumroad product listing for this {vertical} template:\n\n"
             f"Product name: {creation.get('template_name', research.get('product_name', 'Template'))}\n"
             f"Tagline: {creation.get('tagline', '')}\n"
             f"Target user: {creation.get('target_user', research.get('target_audience', ''))}\n"
             f"Key features: {', '.join(features[:5])}\n"
             f"Value proposition: {creation.get('value_proposition', '')}\n"
-            f"SEO keywords: {', '.join(research.get('keywords', []))}\n"
-            f"Suggested price: ${research.get('price', 29)}\n\n"
-            f"Write SEO-optimized copy for the worldwide English-speaking market. Output JSON."
+            f"SEO keywords: {', '.join(research.get('keywords', []))}\n\n"
+            f"Output ONLY a valid JSON object:\n"
+            f'{{"title":"string (SEO title max 60 chars)","description":"string (200 words)",'
+            f'"tags":["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13"],'
+            f'"welcome_email":"string (150 words)","price":12}}'
         )
         return "copywriter", prompt, "copy"
 
     elif stage == "PUBLISHING":
+        copy_title = copy.get("title", "")
+        copy_desc  = copy.get("description", "")
+        copy_tags  = copy.get("tags", [])
+        copy_price = int(float(copy.get("price", 12)) * 100)
         prompt = (
-            f"Review and finalize this {vertical} product for Gumroad publication:\n\n"
-            f"Title: {copy.get('title', '')}\n"
-            f"Description length: {len(copy.get('description', ''))} chars\n"
-            f"Price: ${copy.get('price', 29)}\n"
-            f"Tags: {', '.join(copy.get('tags', []))}\n"
-            f"Bullet points: {len(copy.get('bullet_points', []))} items\n"
-            f"Value proposition: {creation.get('value_proposition', '')}\n\n"
-            f"Verify quality, approve for publication, output JSON checklist."
+            f"Prepare the Gumroad API JSON payload to publish this {vertical} product:\n\n"
+            f"Title: {copy_title}\n"
+            f"Description: {copy_desc[:600]}\n"
+            f"Tags: {', '.join(copy_tags)}\n\n"
+            f"Output ONLY a valid JSON object ready for the Gumroad API:\n"
+            f'{{"name":"{copy_title}","description":"string","price":{copy_price},'
+            f'"published":true,"currency":"usd","tags":{json.dumps(copy_tags[:5])}}}'
         )
         return "publisher", prompt, "publish"
 
@@ -471,14 +503,15 @@ async def build_stage_task(product: dict):
             if "error" not in sales_data:
                 sales_context = f"\nGumroad sales data: {json.dumps(sales_data.get('sales', [])[:3])}"
         prompt = (
-            f"Analyze the performance and optimization potential of this published product:\n\n"
+            f"Analyze the performance of this published {vertical} product:\n\n"
             f"Title: {copy.get('title', 'Digital Template')}\n"
-            f"Vertical: {vertical}\n"
-            f"Price: ${copy.get('price', 29)}\n"
+            f"Price: ${copy.get('price', 12)}\n"
             f"URL: {gumroad_url}\n"
-            f"Tags: {', '.join(copy.get('tags', []))}\n"
-            f"Quality score: {publish.get('quality_score', 'N/A')}{sales_context}\n\n"
-            f"Provide performance analysis and 3 concrete optimization actions. Output JSON."
+            f"Tags: {', '.join(copy.get('tags', []))}{sales_context}\n\n"
+            f"Output ONLY a valid JSON object:\n"
+            f'{{"daily_summary":"string","top_products":["string"],'
+            f'"underperforming_products":["string"],"trend_analysis":"string",'
+            f'"recommendation":"string"}}'
         )
         return "analytics", prompt, "analytics_data"
 
@@ -499,26 +532,36 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
             agent_log(aid, "⚠ JSON parse failed — saving raw output")
             result_json = {"raw": result_text, "parse_error": True}
 
-        # Publisher: resolve copy (with fallback) and create on Gumroad
+        # Publisher: use own LLM output as primary payload, fall back to copy data
         if aid == "publisher":
             product = pipeline.get_product(product_id)
             if product:
-                raw_copy = product.get("copy") or {}
-                # If copy had a parse_error, recover what we can
-                if raw_copy.get("parse_error") or raw_copy.get("_recovered"):
-                    raw_text = raw_copy.get("raw", str(raw_copy))
-                    c = recover_copy(raw_text)
-                    agent_log(aid, f"🔧 Copy recovered from raw text: '{c['title']}'")
-                else:
-                    c = raw_copy
+                # Primary: publisher's own JSON output (name/description/price/tags)
+                pub = result_json if not result_json.get("parse_error") else {}
+                title       = (pub.get("name") or "").strip()
+                description = (pub.get("description") or "").strip()
+                price_cents = pub.get("price") or 0
+                tags        = pub.get("tags") or []
 
-                # Publisher always attempts Gumroad if we have a title
-                if c.get("title") and c["title"] != "Digital Template":
+                # Fallback: copy stage data
+                if not title:
+                    raw_copy = product.get("copy") or {}
+                    if raw_copy.get("parse_error") or raw_copy.get("_recovered"):
+                        c = recover_copy(raw_copy.get("raw", str(raw_copy)))
+                        agent_log(aid, f"🔧 Copy recovered: '{c['title']}'")
+                    else:
+                        c = raw_copy
+                    title       = c.get("title", "")
+                    description = description or c.get("description", "")
+                    price_cents = price_cents or int(float(c.get("price", 12)) * 100)
+                    tags        = tags or c.get("tags", [])
+
+                if title and title != "Digital Template":
                     resp = await gumroad_create_product(
-                        title       = c.get("title", "Digital Template")[:100],
-                        description = c.get("description", "")[:5000],
-                        price_cents = int(float(c.get("price", 29)) * 100),
-                        tags        = c.get("tags", []),
+                        title       = title[:100],
+                        description = description[:5000],
+                        price_cents = int(price_cents),
+                        tags        = tags,
                     )
                     if "product" in resp:
                         url = resp["product"].get("short_url", "")
