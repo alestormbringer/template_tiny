@@ -1,15 +1,6 @@
 version: "3.9"
 
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    volumes:
-      - ollama-data:/root/.ollama
-    networks:
-      - tinyagi-net
-
   agents:
     build:
       context: ./services
@@ -25,7 +16,6 @@ services:
     networks:
       - tinyagi-net
     depends_on:
-      - ollama
       - searxng
 
   searxng:
@@ -58,5 +48,4 @@ networks:
     driver: bridge
 
 volumes:
-  ollama-data:
   agents-data:
