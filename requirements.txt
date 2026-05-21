@@ -1,0 +1,2 @@
+# TinyAGI e' un progetto Node.js — questo file non e' usato.
+# Le dipendenze sono gestite da npm nel Dockerfile.
