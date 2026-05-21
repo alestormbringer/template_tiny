@@ -525,24 +525,36 @@ async def build_stage_task(product: dict):
     publish = product.get("publish") or {}
 
     if stage == "RESEARCH":
-        search_hint = (await searxng_search(f"best selling {vertical} templates Gumroad 2024"))[:300]
+        search_hint = await searxng_search(f"best selling {vertical} templates Gumroad 2024")
+        # Build catalog of already-created product names to avoid duplicates
+        existing = [
+            p.get("research", {}).get("product_name", "")
+            for p in pipeline.products
+            if p.get("vertical") == vertical and p.get("research", {}).get("product_name")
+        ]
+        existing_str = ", ".join(existing[-10:]) if existing else "none yet"
         prompt = (
-            f"You are a market analyst. Find ONE profitable {vertical} digital template idea for Gumroad.\n"
-            f"Market context: {search_hint}\n\n"
-            f"Reply with ONLY this JSON (no other text):\n"
-            f'{{"product_name":"<name>","target_audience":"<audience>","price":12,"keywords":["k1","k2","k3"],"rationale":"<reason>"}}'
+            f"You are a market analyst specialized in digital products for Gumroad and Etsy.\n"
+            f"Find ONE profitable {vertical} digital template idea for English-speaking customers. Price range $9-$15.\n\n"
+            f"Already created products (DO NOT repeat these): {existing_str}\n\n"
+            f"Market research:\n{search_hint}\n\n"
+            f"Output ONLY a valid JSON object (no other text, no markdown):\n"
+            f'{{"product_name":"string","target_audience":"string","price":12,"keywords":["k1","k2","k3"],"rationale":"string"}}'
         )
         return "market-analyst", prompt, "research"
 
     elif stage == "CREATION":
         agent = VERTICAL_AGENT[vertical]
         prompt = (
-            f"Design a {vertical} digital template for Gumroad.\n"
+            f"You are a {vertical} template specialist for the English-speaking productivity market.\n"
+            f"Design a complete {vertical} template based on this research:\n\n"
             f"Product: {research.get('product_name', 'Professional Template')}\n"
-            f"Audience: {research.get('target_audience', 'professionals')}\n"
-            f"Keywords: {', '.join(research.get('keywords', []))}\n\n"
-            f"Reply with ONLY this JSON (no other text):\n"
-            f'{{"template_name":"<name>","tagline":"<tagline>","target_user":"<user>","key_features":["f1","f2","f3"],"value_proposition":"<value>"}}'
+            f"Target audience: {research.get('target_audience', 'professionals')}\n"
+            f"Keywords: {', '.join(research.get('keywords', []))}\n"
+            f"Price: ${research.get('price', 12)}\n"
+            f"Rationale: {research.get('rationale', '')}\n\n"
+            f"Output ONLY a valid JSON object (no other text, no markdown):\n"
+            f'{{"template_name":"string","tagline":"string","target_user":"string","key_features":["f1","f2","f3","f4","f5"],"value_proposition":"string"}}'
         )
         return agent, prompt, "creation"
 
@@ -550,23 +562,33 @@ async def build_stage_task(product: dict):
         features = creation.get("key_features", creation.get("features", []))
         prod_name = creation.get("template_name") or research.get("product_name", "Template")
         prompt = (
-            f"Write a Gumroad listing for: {prod_name}\n"
-            f"Audience: {creation.get('target_user') or research.get('target_audience', 'professionals')}\n"
-            f"Features: {', '.join(str(f) for f in features[:3])}\n\n"
-            f"Reply with ONLY this JSON (no other text):\n"
-            f'{{"title":"<SEO title max 60 chars>","description":"<200 word description>","tags":["t1","t2","t3","t4","t5"],"price":12}}'
+            f"You are a conversion copywriter for digital products on Gumroad.\n"
+            f"Write a complete product listing for this {vertical} template:\n\n"
+            f"Product: {prod_name}\n"
+            f"Tagline: {creation.get('tagline', '')}\n"
+            f"Target audience: {creation.get('target_user') or research.get('target_audience', 'professionals')}\n"
+            f"Key features: {', '.join(str(f) for f in features[:5])}\n"
+            f"Value proposition: {creation.get('value_proposition', '')}\n"
+            f"SEO keywords: {', '.join(research.get('keywords', []))}\n\n"
+            f"Output ONLY a valid JSON object (no other text, no markdown):\n"
+            f'{{"title":"string (SEO title max 60 chars)","description":"string (200 words, persuasive)","tags":["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13"],"price":12}}'
         )
         return "copywriter", prompt, "copy"
 
     elif stage == "PUBLISHING":
         copy_title = copy.get("title") or research.get("product_name", "Digital Template")
-        copy_desc  = copy.get("description", "")[:400]
-        copy_tags  = copy.get("tags", [])[:5]
+        copy_desc  = copy.get("description", "")
+        copy_tags  = copy.get("tags", [])
         copy_price = int(float(copy.get("price", 12)) * 100)
         prompt = (
-            f"Create Gumroad API payload for: {copy_title}\n\n"
-            f"Reply with ONLY this JSON (no other text):\n"
-            f'{{"name":"{copy_title}","description":"{copy_desc[:200]}","price":{copy_price},"published":true,"currency":"usd","tags":{json.dumps(copy_tags)}}}'
+            f"You are a Gumroad publishing assistant.\n"
+            f"Prepare the JSON payload to publish this {vertical} product via the Gumroad API.\n\n"
+            f"Title: {copy_title}\n"
+            f"Description: {copy_desc[:600]}\n"
+            f"Tags: {', '.join(copy_tags)}\n"
+            f"Price (cents): {copy_price}\n\n"
+            f"Output ONLY a valid JSON object (no other text, no markdown). Always set published=true:\n"
+            f'{{"name":"{copy_title}","description":"string","price":{copy_price},"published":true,"currency":"usd","tags":{json.dumps(copy_tags[:5])}}}'
         )
         return "publisher", prompt, "publish"
 
