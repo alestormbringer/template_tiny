@@ -198,7 +198,7 @@ export default function AgentRoom({ id, agent }) {
       {/* Room background image (no character — character is SVG overlay) */}
       {!imgError && (
         <img
-          src={`/assets/rooms/${id}.jpg`}
+          src={`/assets/rooms/${id}.png`}
           className={`room-bg-img${hasImage ? ' room-bg-img--loaded' : ''}`}
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
