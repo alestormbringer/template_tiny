@@ -2,9 +2,10 @@
 TinyAGI Agent Service — pipeline-driven digital product factory
 Targets worldwide English-speaking market on Gumroad
 Verticals: Notion templates | Finance/Excel | Business/Freelance
-Pipeline: RESEARCH → CREATION → COPYWRITING → PUBLISHING → ANALYTICS → DONE
+Pipeline: RESEARCH → CREATION → COPYWRITING → QA → PUBLISHING → ANALYTICS → DONE
 """
 import asyncio
+import io
 import json
 import logging
 import os
@@ -38,9 +39,9 @@ client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=OLLAMA_BASE)
 # ── Pipeline config ───────────────────────────────────────────────────────────
 VERTICALS      = ["notion", "finance", "business"]
 VERTICAL_AGENT = {"notion": "notion-creator", "finance": "finance-creator", "business": "business-creator"}
-STAGE_SEQUENCE = ["RESEARCH", "CREATION", "COPYWRITING", "PUBLISHING", "ANALYTICS", "DONE"]
+STAGE_SEQUENCE = ["RESEARCH", "CREATION", "COPYWRITING", "QA", "PUBLISHING", "ANALYTICS", "DONE"]
 STAGE_DATA_KEY = {"RESEARCH": "research", "CREATION": "creation",
-                  "COPYWRITING": "copy", "PUBLISHING": "publish", "ANALYTICS": "analytics_data"}
+                  "COPYWRITING": "copy", "QA": "qa", "PUBLISHING": "publish", "ANALYTICS": "analytics_data"}
 
 # ── Agent definitions ─────────────────────────────────────────────────────────
 AGENTS: Dict[str, dict] = {
@@ -111,6 +112,22 @@ AGENTS: Dict[str, dict] = {
             "2) persuasive product description (200 words), 3) 13 SEO tags comma-separated, "
             "4) post-purchase welcome email (150 words). "
             "Output each section with a clear label. Target: English-speaking buyers, price range $9-$15."
+        ),
+    },
+    "qa-reviewer": {
+        "name": "QA Reviewer", "xp": 0, "level": 1,
+        "color": "#ffaa00", "status": "idle", "current_task": None,
+        "tasks_done": 0, "log": [],
+        "system": (
+            "You are a quality assurance specialist for Gumroad digital products. "
+            "You receive all product data (research, template structure, copy) and verify that everything is coherent, complete and compelling. "
+            "Check: does the title match the template? Are features realistic? Is the description persuasive and accurate? "
+            "Fix any inconsistencies. Then generate a specific, vivid image prompt for the product cover art. "
+            "Output ONLY a valid JSON object:\n"
+            '{"approved":true,"quality_score":85,"title":"string (final SEO title max 60 chars)",'
+            '"description":"string (final 200-word description)","tags":["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"],'
+            '"price":12,"image_prompt":"detailed prompt for cover art generation, style and content",'
+            '"feedback":"one sentence on what was reviewed or fixed"}'
         ),
     },
     "publisher": {
@@ -510,6 +527,108 @@ async def gumroad_create_product(title: str, description: str, price_cents: int,
         return {"error": str(e)}
 
 
+async def gumroad_upload_file(product_id: str, file_bytes: bytes, filename: str, content_type: str) -> dict:
+    if not GUMROAD_KEY:
+        return {"error": "No Gumroad key"}
+    try:
+        async with aiohttp.ClientSession() as sess:
+            form = aiohttp.FormData()
+            form.add_field("file", file_bytes, filename=filename, content_type=content_type)
+            async with sess.post(
+                f"https://api.gumroad.com/v2/products/{product_id}/product_files",
+                headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
+                data=form,
+                timeout=aiohttp.ClientTimeout(total=120),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def gumroad_update_product(product_id: str, fields: dict) -> dict:
+    if not GUMROAD_KEY:
+        return {"error": "No Gumroad key"}
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.put(
+                f"https://api.gumroad.com/v2/products/{product_id}",
+                headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
+                data=fields,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def generate_cover_image(image_prompt: str) -> Optional[bytes]:
+    safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", image_prompt)[:200].strip().replace(" ", "+")
+    url = f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.get(url, timeout=aiohttp.ClientTimeout(total=60)) as r:
+                if r.status == 200:
+                    return await r.read()
+    except Exception as e:
+        log.warning(f"Image generation failed: {e}")
+    return None
+
+
+def generate_product_pdf(title: str, description: str, features: list,
+                         tagline: str = "", image_bytes: Optional[bytes] = None) -> bytes:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image as RLImage
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter,
+                            rightMargin=72, leftMargin=72,
+                            topMargin=72, bottomMargin=72)
+    styles = getSampleStyleSheet()
+    accent = ParagraphStyle("accent", parent=styles["Normal"],
+                            textColor=colors.HexColor("#2D3A8C"), fontSize=11)
+    story = []
+
+    if image_bytes:
+        try:
+            img_buf = io.BytesIO(image_bytes)
+            story.append(RLImage(img_buf, width=6 * inch, height=3.5 * inch))
+            story.append(Spacer(1, 16))
+        except Exception:
+            pass
+
+    story.append(Paragraph(title, styles["Title"]))
+    if tagline:
+        story.append(Paragraph(tagline, styles["Italic"]))
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2D3A8C")))
+    story.append(Spacer(1, 14))
+
+    story.append(Paragraph("Overview", styles["Heading1"]))
+    story.append(Paragraph(description[:1200] if description else "Professional digital template.", styles["Normal"]))
+    story.append(Spacer(1, 14))
+
+    if features:
+        story.append(Paragraph("What's Included", styles["Heading1"]))
+        for f in features:
+            story.append(Paragraph(f"• {f}", accent))
+        story.append(Spacer(1, 14))
+
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.lightgrey))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        "Thank you for your purchase! Download and start using your template immediately.",
+        styles["Normal"]
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.getvalue()
+
+
 # ── Build task prompt for each pipeline stage ─────────────────────────────────
 async def build_stage_task(product: dict):
     """Returns (agent_id, prompt, data_key) for the product's current stage."""
@@ -583,21 +702,47 @@ async def build_stage_task(product: dict):
         )
         return "copywriter", prompt, "copy"
 
-    elif stage == "PUBLISHING":
-        copy_title = copy.get("title") or research.get("product_name", "Digital Template")
-        copy_desc  = copy.get("description", "")
-        copy_tags  = copy.get("tags", [])
-        copy_price = int(float(copy.get("price", 12)) * 100)
+    elif stage == "QA":
+        qa_title   = copy.get("title") or research.get("product_name", "Template")
+        qa_desc    = copy.get("description", "")
+        qa_tags    = copy.get("tags", [])
+        qa_price   = copy.get("price", research.get("price", 12))
+        features   = creation.get("key_features", creation.get("features", []))
         prompt = (
-            f"You are a Gumroad publishing assistant.\n"
-            f"Prepare the JSON payload to publish this {vertical} product via the Gumroad API.\n\n"
-            f"Title: {copy_title}\n"
-            f"Description: {copy_desc[:600]}\n"
-            f"Tags: {', '.join(copy_tags)}\n"
-            f"Price (cents): {copy_price}\n\n"
-            f"Output ONLY a valid JSON object (no other text, no markdown). Always set published=true:\n"
-            f'{{"name":"{copy_title}","description":"string","price":{copy_price},"published":true,"currency":"usd","tags":{json.dumps(copy_tags[:5])}}}'
+            f"You are a QA specialist for Gumroad digital products.\n"
+            f"Review ALL product data below for coherence, accuracy and persuasiveness. Fix any issues.\n\n"
+            f"=== RESEARCH ===\n"
+            f"Product concept: {research.get('product_name', '')}\n"
+            f"Target audience: {research.get('target_audience', '')}\n"
+            f"Keywords: {', '.join(research.get('keywords', []))}\n"
+            f"Rationale: {research.get('rationale', '')}\n\n"
+            f"=== TEMPLATE STRUCTURE ===\n"
+            f"Template name: {creation.get('template_name', '')}\n"
+            f"Tagline: {creation.get('tagline', '')}\n"
+            f"Target user: {creation.get('target_user', '')}\n"
+            f"Key features: {', '.join(str(f) for f in features[:5])}\n"
+            f"Value proposition: {creation.get('value_proposition', '')}\n\n"
+            f"=== COPYWRITING ===\n"
+            f"Title: {qa_title}\n"
+            f"Description: {qa_desc[:500]}\n"
+            f"Tags: {', '.join(qa_tags[:10])}\n"
+            f"Price: ${qa_price}\n\n"
+            f"Output ONLY a valid JSON object (no other text, no markdown):\n"
+            f'{{"approved":true,"quality_score":85,"title":"string","description":"string",'
+            f'"tags":["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"],'
+            f'"price":12,"image_prompt":"detailed cover art prompt","feedback":"string"}}'
         )
+        return "qa-reviewer", prompt, "qa"
+
+    elif stage == "PUBLISHING":
+        # Use QA-approved data directly — no LLM call needed
+        qa      = product.get("qa") or {}
+        title   = qa.get("title") or copy.get("title") or research.get("product_name", "Digital Template")
+        desc    = qa.get("description") or copy.get("description", "")
+        tags    = qa.get("tags") or copy.get("tags", [])
+        price   = qa.get("price") or copy.get("price", 12)
+        img_prompt = qa.get("image_prompt", f"{vertical} digital template professional clean minimal")
+        prompt  = f"Publish {title} to Gumroad. image_prompt={img_prompt}"
         return "publisher", prompt, "publish"
 
     elif stage == "ANALYTICS":
@@ -628,52 +773,96 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
             agent_log(aid, "⚠ JSON parse failed — saving raw output")
             result_json = {"raw": result_text, "parse_error": True}
 
-        # Publisher: use own LLM output as primary payload, fall back to copy data
+        # QA: check quality score and retry COPYWRITING if too low
+        if aid == "qa-reviewer":
+            score = result_json.get("quality_score", 0) if not result_json.get("parse_error") else 0
+            if score < 50:
+                for p in pipeline.products:
+                    if p["id"] == product_id:
+                        p["stage"]      = "COPYWRITING"
+                        p["copy"]       = None
+                        p["assigned"]   = False
+                        p["updated_at"] = datetime.now().isoformat()
+                        pipeline.save()
+                agent_log(aid, f"✗ Quality {score}/100 too low — back to COPYWRITING")
+                # Save output but don't advance normally
+                out_dir = WORKSPACE / aid
+                out_dir.mkdir(parents=True, exist_ok=True)
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                (out_dir / f"{ts}_{product_id}_qa_rejected.json").write_text(
+                    json.dumps({"product_id": product_id, "score": score, "result": result_json}, indent=2)
+                )
+                xp_gain = 10
+                a["xp"] += xp_gain; a["level"] = xp_to_level(a["xp"]); a["tasks_done"] += 1
+                save_xp()
+                return  # skip normal advance
+            else:
+                agent_log(aid, f"✓ Quality {score}/100 — approved: {result_json.get('feedback','')[:80]}")
+
+        # Publisher: use QA-approved data + generate PDF + image + upload to Gumroad
         if aid == "publisher":
             product = pipeline.get_product(product_id)
             if product:
-                pub = result_json if not result_json.get("parse_error") else {}
-
-                # LLM may use name/final_title/title interchangeably
-                title = (pub.get("name") or pub.get("final_title") or pub.get("title") or "").strip()
-                description = (pub.get("description") or "").strip()
-                price_raw = pub.get("price") or pub.get("final_price") or 0
-                # price_raw < 200 → dollars → convert to cents; else already cents
-                price_cents = int(float(price_raw) * 100) if 0 < float(price_raw) < 200 else int(price_raw)
-                tags = pub.get("tags") or []
-
-                # Always supplement from copy stage (unconditional, not just when title missing)
+                qa   = product.get("qa") or {}
                 raw_copy = product.get("copy") or {}
-                if raw_copy.get("parse_error") or raw_copy.get("_recovered"):
-                    c = recover_copy(raw_copy.get("raw", str(raw_copy)))
-                    agent_log(aid, f"🔧 Copy recovered: '{c['title']}'")
-                else:
-                    c = raw_copy
-                copy_title = (c.get("title") or c.get("seo_title") or c.get("product_title") or c.get("name") or "").strip()
-                if not title:
-                    title = copy_title
-                if not description:
-                    description = c.get("description") or c.get("product_description") or ""
-                if not price_cents:
-                    price_cents = int(float(c.get("price", 12)) * 100)
-                if not tags:
-                    tags = c.get("tags") or c.get("keywords") or []
+                c    = (recover_copy(raw_copy.get("raw", str(raw_copy)))
+                        if (raw_copy.get("parse_error") or raw_copy.get("_recovered")) else raw_copy)
+
+                title   = (qa.get("title") or c.get("title") or
+                           product.get("research", {}).get("product_name", "")).strip()
+                desc    = qa.get("description") or c.get("description") or ""
+                tags    = qa.get("tags") or c.get("tags") or []
+                price_v = qa.get("price") or c.get("price") or 12
+                price_cents = int(float(price_v) * 100) if float(price_v) < 200 else int(price_v)
+                img_prompt  = qa.get("image_prompt",
+                              f"{product.get('vertical','notion')} digital template professional minimal")
+                features    = product.get("creation", {}).get("key_features", [])
+                tagline     = product.get("creation", {}).get("tagline", "")
 
                 if title and title != "Digital Template":
+                    # 1. Create Gumroad product
                     resp = await gumroad_create_product(
-                        title       = title[:100],
-                        description = description[:5000],
-                        price_cents = int(price_cents),
-                        tags        = tags,
+                        title=title[:100], description=desc[:5000],
+                        price_cents=int(price_cents), tags=tags,
                     )
                     if "product" in resp:
-                        url = resp["product"].get("short_url", "")
+                        gumroad_id  = resp["product"].get("id", "")
+                        url         = resp["product"].get("short_url", "")
                         result_json["gumroad_url"] = url
-                        result_json["gumroad_id"]  = resp["product"].get("id", "")
-                        result_json["ready_to_publish"] = True
+                        result_json["gumroad_id"]  = gumroad_id
                         agent_log(aid, f"🚀 Published → {url}")
+
+                        # 2. Generate cover image
+                        agent_log(aid, f"🎨 Generating cover image...")
+                        img_bytes = await generate_cover_image(img_prompt)
+
+                        # 3. Generate PDF
+                        agent_log(aid, f"📄 Generating PDF...")
+                        try:
+                            pdf_bytes = generate_product_pdf(
+                                title=title, description=desc,
+                                features=features, tagline=tagline,
+                                image_bytes=img_bytes,
+                            )
+                            up = await gumroad_upload_file(
+                                gumroad_id, pdf_bytes,
+                                f"{title[:40].replace(' ','_')}.pdf", "application/pdf"
+                            )
+                            if up.get("success"):
+                                agent_log(aid, "📎 PDF uploaded to Gumroad")
+                            else:
+                                agent_log(aid, f"⚠ PDF upload: {up.get('message','error')}")
+                        except Exception as pdf_err:
+                            agent_log(aid, f"⚠ PDF error: {pdf_err}")
+
+                        # 4. Set cover image via preview_url
+                        if img_bytes:
+                            safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", img_prompt)[:200].replace(" ", "+")
+                            preview_url = f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
+                            await gumroad_update_product(gumroad_id, {"preview_url": preview_url})
+                            agent_log(aid, "🖼 Cover image set")
                     else:
-                        err = resp.get("message") or resp.get("error", "unknown error")
+                        err = resp.get("message") or resp.get("error", "unknown")
                         result_json["gumroad_error"] = err
                         agent_log(aid, f"⚠ Gumroad API: {err}")
                 else:
