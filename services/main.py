@@ -195,6 +195,14 @@ class PipelineManager:
                 return
 
     def get_pending_actions(self) -> List[dict]:
+        # Auto-unblock products stuck as assigned for more than 15 minutes
+        cutoff = (datetime.now() - __import__('datetime').timedelta(minutes=15)).isoformat()
+        for p in self.products:
+            if p.get("assigned") and p.get("updated_at", "") < cutoff and p["stage"] != "DONE":
+                p["assigned"] = False
+                log.info(f"Auto-unblocked stuck product {p['id']} at stage {p['stage']}")
+        self.save()
+
         actions = []
         for vertical in VERTICALS:
             active = [p for p in self.products
