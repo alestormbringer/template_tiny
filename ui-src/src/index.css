@@ -513,6 +513,17 @@ html, body, #root {
   to   { transform: scaleY(1);   }
 }
 
+@keyframes roomFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-3px); }
+}
+
+@keyframes roomUpload {
+  from { opacity: 0.6; }
+  50%  { opacity: 1; }
+  to   { opacity: 0.6; }
+}
+
 /* ─── Conn badge ──────────────────────────────────────────────────────────── */
 .conn-badge {
   position: absolute;

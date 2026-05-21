@@ -1,14 +1,14 @@
 import { motion } from 'framer-motion'
 
 export const ROOM_CONFIG = {
-  'tinyagi':          { color: '#00d4ff', label: 'NEXUS'    },
-  'market-analyst':   { color: '#ff6b35', label: 'MARKET'   },
-  'notion-creator':   { color: '#00ff88', label: 'DOC FORGE'},
-  'finance-creator':  { color: '#ffd700', label: 'FINANCE'  },
-  'business-creator': { color: '#aa44ff', label: 'STRATEGY' },
-  'copywriter':       { color: '#ff44aa', label: 'CONTENT'  },
-  'publisher':        { color: '#ff8c00', label: 'PUBLISH'  },
-  'analytics':        { color: '#00e5ff', label: 'ANALYTICS'},
+  'tinyagi':          { color: '#88ccff', label: 'NEXUS'    },
+  'market-analyst':   { color: '#ffaa77', label: 'MARKET'   },
+  'notion-creator':   { color: '#88ddaa', label: 'NOTION'   },
+  'finance-creator':  { color: '#ffdd77', label: 'FINANCE'  },
+  'business-creator': { color: '#cc88ff', label: 'STRATEGY' },
+  'copywriter':       { color: '#ff99cc', label: 'CONTENT'  },
+  'publisher':        { color: '#ff8877', label: 'PUBLISH'  },
+  'analytics':        { color: '#77eedd', label: 'ANALYTICS'},
 }
 
 function hexToRgb(hex) {
@@ -16,43 +16,17 @@ function hexToRgb(hex) {
 }
 
 // ─── Shared SVG defs ──────────────────────────────────────────────────────────
-function Defs({ color, id, floor = 'tile' }) {
+function Defs({ color, id }) {
   return (
     <defs>
-      <radialGradient id={`amb-${id}`} cx="50%" cy="45%" r="65%">
-        <stop offset="0%"   stopColor={color} stopOpacity="0.3" />
+      <radialGradient id={`amb-${id}`} cx="50%" cy="38%" r="62%">
+        <stop offset="0%"   stopColor={color} stopOpacity="0.28" />
         <stop offset="100%" stopColor={color} stopOpacity="0" />
       </radialGradient>
-      <radialGradient id={`amb2-${id}`} cx="50%" cy="45%" r="50%">
-        <stop offset="0%"   stopColor={color} stopOpacity="0.08" />
-        <stop offset="100%" stopColor={color} stopOpacity="0" />
-      </radialGradient>
-      <pattern id={`flr-${id}`} x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-        {floor === 'tile' && (
-          <g>
-            <rect width="16" height="16" fill={color} fillOpacity="0.03" />
-            <path d="M 16 0 L 0 0 0 16" fill="none" stroke={color} strokeWidth="0.5" strokeOpacity="0.25" />
-          </g>
-        )}
-        {floor === 'dot' && (
-          <g>
-            <rect width="16" height="16" fill={color} fillOpacity="0.03" />
-            <circle cx="8" cy="8" r="1.1" fill={color} fillOpacity="0.3" />
-          </g>
-        )}
-        {floor === 'iso' && (
-          <g>
-            <rect width="16" height="16" fill={color} fillOpacity="0.03" />
-            <path d="M 0 8 L 8 0 L 16 8 L 8 16 Z" fill="none" stroke={color} strokeWidth="0.5" strokeOpacity="0.22" />
-          </g>
-        )}
-        {floor === 'cross' && (
-          <g>
-            <rect width="16" height="16" fill={color} fillOpacity="0.03" />
-            <line x1="8" y1="4" x2="8" y2="12" stroke={color} strokeWidth="0.5" strokeOpacity="0.22" />
-            <line x1="4" y1="8" x2="12" y2="8" stroke={color} strokeWidth="0.5" strokeOpacity="0.22" />
-          </g>
-        )}
+      <pattern id={`flr-${id}`} x="0" y="0" width="20" height="12" patternUnits="userSpaceOnUse">
+        <polygon points="10,0 20,6 10,12 0,6"
+          fill={color} fillOpacity="0.07"
+          stroke={color} strokeWidth="0.5" strokeOpacity="0.28" />
       </pattern>
       <filter id={`gl-${id}`} x="-80%" y="-80%" width="260%" height="260%">
         <feGaussianBlur stdDeviation="2.5" result="b" />
@@ -66,58 +40,60 @@ function Defs({ color, id, floor = 'tile' }) {
   )
 }
 
-// ─── Room background: floor + walls + corner studs ────────────────────────────
+// ─── Background: isometric floor + wall division ──────────────────────────────
 function Bg({ color, id }) {
-  const pts = '16,0 184,0 200,16 200,232 184,248 16,248 0,232 0,16'
   return (
     <>
-      <rect x="0" y="0" width="200" height="248" fill={`url(#flr-${id})`} />
+      {/* Isometric floor tiles (lower portion) */}
+      <rect x="0" y="82" width="200" height="166" fill={`url(#flr-${id})`} />
+      {/* Back wall (upper) */}
+      <rect x="0" y="0" width="200" height="90" fill={color} fillOpacity="0.09" />
+      {/* Horizon line wall/floor */}
+      <line x1="0" y1="88" x2="200" y2="88" stroke={color} strokeOpacity="0.5" strokeWidth="1" />
+      {/* Wall skirting */}
+      <rect x="0" y="86" width="200" height="4" fill={color} fillOpacity="0.28" />
+      {/* Ambient center glow */}
       <rect x="0" y="0" width="200" height="248" fill={`url(#amb-${id})`} />
-      {/* Wall polygon */}
-      <polygon points={pts} fill="none" stroke={color} strokeOpacity="0.7" strokeWidth="2.5" />
+      {/* Outer octagon border */}
+      <polygon points="16,0 184,0 200,16 200,232 184,248 16,248 0,232 0,16"
+        fill="none" stroke={color} strokeOpacity="0.8" strokeWidth="2" />
       <polygon points="18,2 182,2 198,18 198,230 182,246 18,246 2,230 2,18"
         fill="none" stroke={color} strokeOpacity="0.18" strokeWidth="0.5" />
-      {/* Wall trim line inner top */}
-      <line x1="0" y1="18" x2="200" y2="18" stroke={color} strokeOpacity="0.22" strokeWidth="0.5" />
-      <line x1="0" y1="230" x2="200" y2="230" stroke={color} strokeOpacity="0.22" strokeWidth="0.5" />
       {/* Corner studs */}
       {[[14,3],[186,3],[3,14],[197,14],[14,245],[186,245],[3,234],[197,234]].map(([x,y],i)=>(
-        <circle key={i} cx={x} cy={y} r="1.5" fill={color} fillOpacity="0.85" filter={`url(#sg-${id})`} />
+        <circle key={i} cx={x} cy={y} r="1.8" fill={color} fillOpacity="0.95" filter={`url(#sg-${id})`} />
       ))}
-      {/* Door slit top */}
-      <rect x="90" y="0" width="20" height="4" fill="rgba(0,0,0,0.9)" />
-      <rect x="92" y="1" width="16" height="2" fill={color} fillOpacity="0.7"
+      {/* Top door slit */}
+      <rect x="88" y="0" width="24" height="5" fill="rgba(0,0,0,0.9)" />
+      <rect x="90" y="1" width="20" height="3" fill={color} fillOpacity="0.8"
         style={{ animation: 'roomBlink 2.5s ease-in-out infinite' }} />
     </>
   )
 }
 
-// ─── Agent info overlay (bottom of SVG) ───────────────────────────────────────
+// ─── Info overlay ─────────────────────────────────────────────────────────────
 function Info({ color, id, label, name, task, level, xpPct, working }) {
   const taskStr = task ? (task.length > 34 ? task.slice(0, 34) + '…' : task) : '— standby —'
   return (
     <g>
-      <rect x="0" y="248" width="200" height="32" fill="rgba(0,0,2,0.85)" />
-      <line x1="0" y1="248" x2="200" y2="248" stroke={color} strokeOpacity="0.55" strokeWidth="1" />
-      {/* Label */}
+      <rect x="0" y="248" width="200" height="32" fill="rgba(3,3,12,0.94)" />
+      <line x1="0" y1="248" x2="200" y2="248" stroke={color} strokeOpacity="0.65" strokeWidth="1" />
       <text x="8" y="258" fill={color} fillOpacity="0.95" fontSize="6.5"
         fontFamily="Orbitron,monospace" letterSpacing="2.5" fontWeight="700">{label}</text>
-      {/* Status dot */}
+      <text x="70" y="257" fill={working ? '#88ffcc' : '#333355'} fontSize="5.5"
+        fontFamily="Orbitron,monospace" letterSpacing="2">{working ? 'BUSY' : 'IDLE'}</text>
       <circle cx="192" cy="255" r="3"
-        fill={working ? '#00ff88' : 'rgba(255,255,255,0.15)'}
+        fill={working ? '#66ffaa' : 'rgba(255,255,255,0.12)'}
         filter={working ? `url(#gl-${id})` : undefined}
         style={working ? { animation: 'roomBlink 0.9s ease-in-out infinite' } : undefined} />
-      {/* Agent name */}
       <text x="8" y="268" fill="#d0d0f0" fontSize="8.5"
         fontFamily="Rajdhani,sans-serif" fontWeight="700">{name}</text>
       <text x="178" y="268" fill={color} fontSize="7"
         fontFamily="Orbitron,monospace" textAnchor="end">Lv{level}</text>
-      {/* Task */}
-      <text x="8" y="277" fill="#6060a0" fontSize="7"
+      <text x="8" y="277" fill="#5050a0" fontSize="7"
         fontFamily="Rajdhani,sans-serif">{taskStr}</text>
-      {/* XP bar */}
       <rect x="0" y="279" width="200" height="1.5" fill={`rgba(${hexToRgb(color)},0.12)`} />
-      <rect x="0" y="279" width={xpPct * 2} height="1.5" fill={color} fillOpacity="0.85" />
+      <rect x="0" y="279" width={xpPct * 2} height="1.5" fill={color} fillOpacity="0.9" />
     </g>
   )
 }
@@ -126,14 +102,14 @@ function Info({ color, id, label, name, task, level, xpPct, working }) {
 function Term({ x, y, color, id, w = 14, h = 12, rate = 1.5, lit = true }) {
   return (
     <g>
-      <rect x={x} y={y+h-2} width={w} height={2.5} fill="rgba(0,0,0,0.6)" />
-      <rect x={x} y={y} width={w} height={h} fill="rgba(0,0,0,0.75)"
-        stroke={color} strokeWidth="0.7" strokeOpacity="0.9" />
+      <rect x={x} y={y+h} width={w} height="2.5" fill="rgba(0,0,0,0.5)" />
+      <rect x={x} y={y} width={w} height={h} fill="rgba(4,4,18,0.88)"
+        stroke={color} strokeWidth="0.8" strokeOpacity="0.95" />
       <rect x={x+1.5} y={y+1.5} width={w-3} height={h-5.5} fill={color}
         fillOpacity={lit ? 0.9 : 0.2} filter={lit ? `url(#sg-${id})` : undefined}
         style={lit ? { animation: `roomBlink ${rate}s ease-in-out infinite` } : undefined} />
       <line x1={x+1.5} y1={y+h-3.5} x2={x+w-1.5} y2={y+h-3.5}
-        stroke={color} strokeOpacity="0.55" strokeWidth="0.4" />
+        stroke={color} strokeOpacity="0.5" strokeWidth="0.4" />
     </g>
   )
 }
@@ -141,58 +117,89 @@ function Term({ x, y, color, id, w = 14, h = 12, rate = 1.5, lit = true }) {
 function Scr({ x, y, w = 26, h = 13, color, id, content = 'bars', rate = 1.5 }) {
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} fill="rgba(0,0,0,0.85)"
+      <rect x={x} y={y} width={w} height={h} fill="rgba(4,4,18,0.9)"
         stroke={color} strokeWidth="0.8" strokeOpacity="0.95" />
-      <rect x={x} y={y} width={w} height="2" fill={color} fillOpacity="0.65" />
+      <rect x={x} y={y} width={w} height="2.2" fill={color} fillOpacity="0.7" />
       {content === 'bars' && Array.from({ length: 5 }, (_, i) => {
-        const bh = [4, 7, 5, 9, 6][i]
+        const bh = [4,7,5,9,6][i]
         return <rect key={i} x={x+2+i*(w-4)/5} y={y+h-2-bh} width={(w-4)/5-0.5} height={bh}
           fill={color} fillOpacity="0.95" filter={`url(#sg-${id})`}
-          style={{ animation: `roomBarPulse ${0.8+i*0.2}s ease-in-out infinite alternate`,
-                   transformBox: 'fill-box', transformOrigin: 'bottom' }} />
+          style={{ animation:`roomBarPulse ${0.8+i*0.2}s ease-in-out infinite alternate`,
+                   transformBox:'fill-box', transformOrigin:'bottom' }} />
       })}
       {content === 'line' && (
         <polyline points={`${x+2},${y+h-3} ${x+w*0.2},${y+3} ${x+w*0.4},${y+h-4} ${x+w*0.65},${y+2} ${x+w-2},${y+h-3}`}
-          fill="none" stroke={color} strokeWidth="1" strokeOpacity="1" filter={`url(#sg-${id})`} />
+          fill="none" stroke={color} strokeWidth="1.2" strokeOpacity="1" filter={`url(#sg-${id})`} />
       )}
       {content === 'wave' && (
         <path d={`M${x+1},${y+h/2} Q${x+w/4},${y+1} ${x+w/2},${y+h/2} T${x+w-1},${y+h/2}`}
-          fill="none" stroke={color} strokeWidth="1" strokeOpacity="1" filter={`url(#sg-${id})`} />
+          fill="none" stroke={color} strokeWidth="1.2" strokeOpacity="1" filter={`url(#sg-${id})`} />
       )}
-      {content === 'dot' && Array.from({ length: 6 }, (_, i) => (
-        <circle key={i} cx={x+2+i*(w-4)/5} cy={y+h/2} r="0.9" fill={color}
-          style={{ animation: `roomBlink ${0.6+i*0.2}s ease-in-out infinite` }} />
+      {content === 'dot' && Array.from({ length: 5 }, (_, i) => (
+        <circle key={i} cx={x+3+i*(w-6)/4} cy={y+h/2} r="1.2" fill={color}
+          style={{ animation:`roomBlink ${0.6+i*0.22}s ease-in-out infinite` }} />
+      ))}
+      {content === 'text' && [0,1,2].map(i => (
+        <rect key={i} x={x+2} y={y+3+i*3} width={w-4-(i%2)*4} height="1.5"
+          fill={color} fillOpacity={0.8-i*0.18}
+          style={{ animation:`roomBlink ${1+i*0.4}s ease-in-out infinite` }} />
       ))}
     </g>
   )
 }
 
-function Char({ x, y, color, id, skin, dur = 0.75 }) {
-  const s = skin || color
-  return (
-    <g style={{ animation: `roomCharBob ${dur}s ease-in-out infinite alternate`,
-                transformBox: 'fill-box', transformOrigin: 'bottom' }}>
-      <ellipse cx={x+3} cy={y+14} rx="3.5" ry="1" fill="rgba(0,0,0,0.6)" />
-      <rect x={x+1.5} y={y+10} width="1.5" height="4" fill="#131320" />
-      <rect x={x+3.5} y={y+10} width="1.5" height="4" fill="#131320" />
-      <rect x={x+1} y={y+4.5} width="5" height="5.5" fill={s} stroke="#080818" strokeWidth="0.4" />
-      <rect x={x+1.4} y={y+4.5} width="5" height="1.2" fill="rgba(0,0,0,0.5)" />
-      <rect x={x+1.4} y={y} width="4.2" height="4.5" fill={s} stroke="#080818" strokeWidth="0.4" />
-      <rect x={x+2.2} y={y+1.6} width="0.8" height="0.8" fill="#050510" />
-      <rect x={x+4}   y={y+1.6} width="0.8" height="0.8" fill="#050510" />
-    </g>
-  )
-}
+// Bigger pixel-art character with variant themes
+function Char({ x, y, color, id, variant = 'default', dur = 0.75 }) {
+  const themes = {
+    default:   { hair: color,     shirt: color,     pant: '#2a2a40' },
+    nexus:     { hair: '#44ddff', shirt: '#1a3366', pant: '#0d1a33' },
+    analyst:   { hair: '#ff9933', shirt: '#cc5522', pant: '#1a1a33' },
+    designer:  { hair: '#dd44ff', shirt: '#33aa77', pant: '#112233' },
+    finance:   { hair: '#887755', shirt: '#3355aa', pant: '#111133' },
+    business:  { hair: '#885533', shirt: '#884499', pant: '#221133' },
+    writer:    { hair: '#ff44aa', shirt: '#bb2277', pant: '#330033' },
+    publisher: { hair: '#ff4444', shirt: '#aa2222', pant: '#330011' },
+    data:      { hair: '#44aaff', shirt: '#115577', pant: '#111133' },
+  }
+  const t = themes[variant] || themes.default
+  const skin = '#f5c5a3'
 
-function Crate({ x, y, color, id, w = 12, h = 12 }) {
   return (
-    <g>
-      <rect x={x+0.5} y={y+h-1} width={w} height="1.5" fill="rgba(0,0,0,0.45)" />
-      <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity="0.22"
-        stroke={color} strokeWidth="0.8" strokeOpacity="0.8" />
-      <line x1={x} y1={y+h/2} x2={x+w} y2={y+h/2} stroke={color} strokeOpacity="0.5" strokeWidth="0.4" />
-      <line x1={x+w/2} y1={y} x2={x+w/2} y2={y+h} stroke={color} strokeOpacity="0.5" strokeWidth="0.4" />
-      <circle cx={x+w/2} cy={y+h/2} r="1" fill={color} fillOpacity="0.9" filter={`url(#sg-${id})`} />
+    <g style={{
+      animation: `roomCharBob ${dur}s ease-in-out infinite alternate`,
+      transformBox: 'fill-box', transformOrigin: 'bottom center'
+    }}>
+      {/* Shadow */}
+      <ellipse cx={x+6} cy={y+23.5} rx="5.5" ry="1.6" fill="rgba(0,0,0,0.55)" />
+      {/* Legs */}
+      <rect x={x+2} y={y+15} width="3" height="7" fill={t.pant} />
+      <rect x={x+7} y={y+15} width="3" height="7" fill={t.pant} />
+      {/* Shoes */}
+      <rect x={x+1} y={y+21} width="5" height="2.5" fill="#181824" />
+      <rect x={x+6.5} y={y+21} width="5" height="2.5" fill="#181824" />
+      {/* Body */}
+      <rect x={x+1} y={y+8} width="10" height="8" fill={t.shirt} />
+      {/* Collar accent */}
+      <rect x={x+4} y={y+8} width="4" height="1.5" fill={t.hair} fillOpacity="0.45" />
+      {/* Arms */}
+      <rect x={x-0.5} y={y+9} width="2" height="5" fill={t.shirt} />
+      <rect x={x+10.5} y={y+9} width="2" height="5" fill={t.shirt} />
+      {/* Hands */}
+      <circle cx={x+0.2} cy={y+15} r="1.5" fill={skin} />
+      <circle cx={x+11.8} cy={y+15} r="1.5" fill={skin} />
+      {/* Head */}
+      <rect x={x+2} y={y+1} width="8" height="8" fill={skin} />
+      {/* Hair */}
+      <rect x={x+2} y={y} width="8" height="3" fill={t.hair} />
+      <rect x={x+1.5} y={y+3} width="1.5" height="3.5" fill={t.hair} fillOpacity="0.6" />
+      <rect x={x+9} y={y+3} width="1.5" height="3.5" fill={t.hair} fillOpacity="0.6" />
+      {/* Eyes */}
+      <rect x={x+3.5} y={y+4} width="2" height="2" fill="#1a0e08" />
+      <rect x={x+6.5} y={y+4} width="2" height="2" fill="#1a0e08" />
+      <rect x={x+3.5} y={y+4} width="0.7" height="0.7" fill="white" fillOpacity="0.8" />
+      <rect x={x+6.5} y={y+4} width="0.7" height="0.7" fill="white" fillOpacity="0.8" />
+      {/* Mouth */}
+      <rect x={x+4.5} y={y+7} width="3" height="1" fill="#cc8866" fillOpacity="0.5" />
     </g>
   )
 }
@@ -200,538 +207,730 @@ function Crate({ x, y, color, id, w = 12, h = 12 }) {
 function Lamp({ x, y, color, id, rate = 1.3 }) {
   return (
     <g>
-      <circle cx={x} cy={y} r="3" fill={color} fillOpacity="0.15" />
-      <circle cx={x} cy={y} r="1.5" fill={color} filter={`url(#gl-${id})`}
+      <circle cx={x} cy={y} r="5" fill={color} fillOpacity="0.14" />
+      <circle cx={x} cy={y} r="2.2" fill={color} filter={`url(#gl-${id})`}
         style={{ animation: `roomBlink ${rate}s ease-in-out infinite` }} />
     </g>
   )
 }
 
-// ─── ROOM 1: NEXUS — Command center ───────────────────────────────────────────
+// Pixel art plant
+function Plant({ x, y, color }) {
+  return (
+    <g>
+      <rect x={x+2} y={y+11} width="10" height="8" fill="#1a2233" stroke={color} strokeWidth="0.5" strokeOpacity="0.6" />
+      <rect x={x+1} y={y+10} width="12" height="2.5" fill="#222d44" />
+      <rect x={x+6} y={y+4} width="2" height="8" fill="#228833" />
+      <ellipse cx={x+4} cy={y+7} rx="4.5" ry="3" fill="#33aa44" />
+      <ellipse cx={x+9} cy={y+5} rx="4" ry="3" fill="#44bb55" />
+      <ellipse cx={x+6} cy={y+3} rx="3.5" ry="2.5" fill="#55cc66" />
+    </g>
+  )
+}
+
+// Coffee mug
+function Mug({ x, y, color }) {
+  return (
+    <g>
+      <rect x={x} y={y+4} width="11" height="10" fill="#221a10" stroke={color} strokeWidth="0.6" strokeOpacity="0.7" />
+      <path d={`M${x+11} ${y+6} Q${x+15} ${y+6} ${x+15} ${y+9} Q${x+15} ${y+12} ${x+11} ${y+12}`}
+        fill="none" stroke={color} strokeWidth="1.3" strokeOpacity="0.7" />
+      <rect x={x+1} y={y+4} width="9" height="3" fill={color} fillOpacity="0.35" />
+      <path d={`M${x+4} ${y+3} Q${x+3} ${y+1} ${x+4} ${y-1}`}
+        fill="none" stroke={color} strokeWidth="0.8" strokeOpacity="0.45"
+        style={{ animation: 'roomBlink 1.6s ease-in-out infinite' }} />
+      <path d={`M${x+7} ${y+2} Q${x+6} ${y+0} ${x+7} ${y-2}`}
+        fill="none" stroke={color} strokeWidth="0.8" strokeOpacity="0.3"
+        style={{ animation: 'roomBlink 2s ease-in-out infinite' }} />
+    </g>
+  )
+}
+
+// Neon sign
+function NeonSign({ x, y, text, color, id, w = 40, h = 10 }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity="0.12"
+        stroke={color} strokeWidth="0.7" strokeOpacity="0.9" filter={`url(#sg-${id})`} />
+      <text x={x+w/2} y={y+h*0.72} fill={color} fillOpacity="0.95" fontSize="5.5"
+        fontFamily="Orbitron,monospace" textAnchor="middle" letterSpacing="1.5"
+        filter={`url(#sg-${id})`}>{text}</text>
+    </g>
+  )
+}
+
+// ─── ROOM 1: NEXUS — Command center with pipeline ─────────────────────────────
 function NexusRoom({ id, color, working }) {
   const c = color
   return (
     <>
-      <Defs color={c} id={id} floor="tile" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Top row: 5 wall screens */}
-      {[16,52,88,124,160].map((x,i)=>(
-        <Scr key={i} x={x} y={22} w={28} h={13} color={c} id={id}
-          content={['bars','line','wave','bars','dot'][i]} rate={0.9+i*0.2} />
+
+      {/* Wall screens */}
+      {[14,52,88,124,158].map((x,i)=>(
+        <Scr key={i} x={x} y={22} w={28} h={14} color={c} id={id}
+          content={['bars','line','wave','text','dot'][i]} rate={0.9+i*0.2} />
       ))}
-      {/* Central core + spinning rings */}
-      <circle cx="100" cy="120" r="30" fill={c} fillOpacity="0.06" />
-      {[50,38,26].map((r,i)=>(
-        <g key={i} style={{ transformBox:'fill-box', transformOrigin:'100px 120px',
-          animation:`${i%2===0?'roomSpin':'roomSpinRev'} ${working?2+i:5+i*2}s linear infinite` }}>
-          <circle cx="100" cy="120" r={r} fill="none" stroke={c}
-            strokeOpacity={0.35+i*0.12} strokeWidth={i===2?2:1}
-            strokeDasharray={i===0?'4 5':i===1?'2 4':'none'} />
-          {i===1 && [0,90,180,270].map(a=>{
+
+      {/* Central NEXUS core ring system */}
+      <circle cx="100" cy="96" r="22" fill={c} fillOpacity="0.07" filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'1s':'2.8s'} ease-in-out infinite` }} />
+      {[32,24,15].map((r,i)=>(
+        <g key={i} style={{ transformBox:'fill-box', transformOrigin:'100px 96px',
+          animation:`${i%2===0?'roomSpin':'roomSpinRev'} ${working?3+i:8+i*2.5}s linear infinite` }}>
+          <circle cx="100" cy="96" r={r} fill="none" stroke={c}
+            strokeOpacity={0.4+i*0.14} strokeWidth={i===2?1.8:0.9}
+            strokeDasharray={i===0?'4 5':'none'} />
+          {i===1 && [0,120,240].map(a=>{
             const rad=a*Math.PI/180
-            return <circle key={a} cx={100+Math.cos(rad)*r} cy={120+Math.sin(rad)*r}
+            return <circle key={a} cx={100+Math.cos(rad)*24} cy={96+Math.sin(rad)*24}
               r="2.5" fill={c} filter={`url(#gl-${id})`} />
           })}
         </g>
       ))}
-      {/* Sweep */}
-      <g style={{ transformBox:'fill-box', transformOrigin:'100px 120px',
-        animation:`roomSpin ${working?1.8:4.5}s linear infinite` }}>
-        <path d={`M100,120 L100,70 A50,50 0 0,1 ${100+50*Math.sin(Math.PI/4)},${120-50*Math.cos(Math.PI/4)} Z`}
-          fill={c} fillOpacity="0.18" />
-        <line x1="100" y1="120" x2="100" y2="70" stroke={c} strokeWidth="2" strokeOpacity="0.9"
-          filter={`url(#gl-${id})`} />
-      </g>
-      {/* Center core */}
-      <circle cx="100" cy="120" r="12" fill={`url(#amb2-${id})`} stroke={c} strokeWidth="1.8"
-        style={{ transformBox:'fill-box', transformOrigin:'center',
-          animation:`roomPulse ${working?'0.9s':'2.2s'} ease-in-out infinite` }}
-        filter={`url(#gl-${id})`} />
-      <circle cx="100" cy="120" r="5" fill={c} filter={`url(#gl-${id})`} />
-      <circle cx="100" cy="120" r="2" fill="#fff" filter={`url(#gl-${id})`} />
-      {/* Radar blips */}
-      {[[130,95],[75,140],[140,140],[68,96],[120,152]].map(([bx,by],i)=>(
-        <circle key={i} cx={bx} cy={by} r={i===0?3.5:2.5} fill={c} filter={`url(#gl-${id})`}
-          style={{ animation:`roomBlink ${1+i*0.35}s ease-in-out infinite` }} />
+      <circle cx="100" cy="96" r="7" fill={c} fillOpacity="0.55" filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'0.8s':'2s'} ease-in-out infinite` }} />
+      <circle cx="100" cy="96" r="2.5" fill="#fff" filter={`url(#gl-${id})`} />
+
+      {/* Holographic pipeline table */}
+      <ellipse cx="100" cy="152" rx="68" ry="20" fill={c} fillOpacity="0.1"
+        stroke={c} strokeWidth="1.2" strokeOpacity="0.65" />
+      <ellipse cx="100" cy="150" rx="66" ry="18" fill={c} fillOpacity="0.05" />
+
+      {/* Pipeline nodes on table */}
+      {[[48,142,'MKT'],[68,134,'DOC'],[100,130,'CPY'],[132,134,'PUB'],[152,142,'ANL']].map(([nx,ny,lbl],i)=>(
+        <g key={i}>
+          <circle cx={nx} cy={ny} r="8" fill={c} fillOpacity="0.25"
+            stroke={c} strokeWidth="1" strokeOpacity="0.85" />
+          <circle cx={nx} cy={ny} r="3.5" fill={c} fillOpacity="0.8"
+            style={{ animation:`roomBlink ${0.7+i*0.22}s ease-in-out infinite` }} />
+          <text x={nx} y={ny+2.5} fill={c} fillOpacity="0.9" fontSize="4"
+            fontFamily="monospace" textAnchor="middle">{lbl}</text>
+        </g>
       ))}
-      {/* Tick marks */}
-      {Array.from({length:16},(_,i)=>{
-        const a=(i/16)*Math.PI*2
-        return <line key={i}
-          x1={100+Math.cos(a)*50} y1={120+Math.sin(a)*50}
-          x2={100+Math.cos(a)*56} y2={120+Math.sin(a)*56}
-          stroke={c} strokeWidth="1.2" strokeOpacity="0.55" />
-      })}
-      {/* Corner consoles */}
-      <Term x={14} y={48} color={c} id={id} w={20} h={16} rate={1.6} />
-      <Term x={166} y={48} color={c} id={id} w={20} h={16} rate={1.2} />
-      <Term x={14} y={162} color={c} id={id} w={20} h={16} rate={1.8} />
-      <Term x={166} y={162} color={c} id={id} w={20} h={16} rate={1.4} />
-      {/* Cables */}
-      {[[24,64],[176,64],[24,170],[176,170]].map(([cx2,cy2],i)=>(
-        <line key={i} x1={cx2} y1={cy2} x2="100" y2="120"
-          stroke={c} strokeWidth="0.6" strokeOpacity="0.35" strokeDasharray="2 3"
-          style={{ animation:`roomDash ${1.5+i*0.35}s linear infinite` }} />
+      {/* Pipeline connectors */}
+      {[[48,142,68,134],[68,134,100,130],[100,130,132,134],[132,134,152,142]].map(([x1,y1,x2,y2],i)=>(
+        <line key={i} x1={x1+8} y1={y1} x2={x2-8} y2={y2}
+          stroke={c} strokeWidth="1.2" strokeOpacity="0.65" strokeDasharray="3 2"
+          style={{ animation:`roomDash ${1+i*0.28}s linear infinite` }} />
       ))}
+
+      {/* Corner terminals */}
+      <Term x={12} y={100} color={c} id={id} w={22} h={16} rate={1.4} />
+      <Term x={166} y={100} color={c} id={id} w={22} h={16} rate={1.1} />
+
       {/* Characters */}
-      <Char x={84} y={196} color={c} id={id} skin="#88ccff" dur={0.7} />
-      <Char x={110} y={194} color={c} id={id} skin="#66aaee" dur={0.9} />
-      {/* Wall lamps */}
-      <Lamp x={12} y={120} color={c} id={id} rate={1.4} />
-      <Lamp x={188} y={120} color={c} id={id} rate={1.1} />
-      <Lamp x={100} y={8} color={c} id={id} rate={1.8} />
+      <Char x={86} y={172} color={c} id={id} variant="nexus" dur={0.7} />
+      <Char x={104} y={174} color={c} id={id} variant="data" dur={0.95} />
+
+      {/* Blips */}
+      {[[126,82],[72,110],[128,110]].map(([bx,by],i)=>(
+        <circle key={i} cx={bx} cy={by} r="1.8" fill={c} filter={`url(#gl-${id})`}
+          style={{ animation:`roomBlink ${0.8+i*0.38}s ease-in-out infinite` }} />
+      ))}
+
+      <Lamp x={14} y={108} color={c} id={id} rate={1.4} />
+      <Lamp x={186} y={108} color={c} id={id} rate={1.1} />
+      <Lamp x={100} y={8} color={c} id={id} rate={2} />
     </>
   )
 }
 
-// ─── ROOM 2: MARKET — Trading floor ───────────────────────────────────────────
+// ─── ROOM 2: MARKET — Research office with CRT monitors ──────────────────────
 function MarketRoom({ id, color, working }) {
   const c = color
-  const barH = [10,16,12,22,14,20,26,16,24,18,28,13,21,15]
   return (
     <>
-      <Defs color={c} id={id} floor="dot" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Back wall screens */}
-      {[10,44,78,112,146,170].map((x,i)=>(
-        <Scr key={i} x={x} y={20} w={28} h={16} color={c} id={id}
-          content={i%2===0?'line':'bars'} rate={0.8+i*0.18} />
+
+      {/* Back wall: 3 CRT monitors */}
+      {[16,76,136].map((x,i)=>(
+        <g key={i}>
+          {/* CRT body */}
+          <rect x={x} y={18} width="50" height="38" fill="rgba(8,8,22,0.9)"
+            stroke={c} strokeWidth="1" strokeOpacity="0.85" />
+          <rect x={x} y={18} width="50" height="3" fill={c} fillOpacity="0.6" />
+          {/* Screen content */}
+          <Scr x={x+3} y={22} w={44} h={22} color={c} id={id}
+            content={['line','bars','line'][i]} rate={0.8+i*0.3} />
+          {/* CRT stand */}
+          <rect x={x+20} y={56} width="10" height="4" fill={c} fillOpacity="0.4" />
+          <rect x={x+16} y={59} width="18" height="2.5" fill={c} fillOpacity="0.5" />
+          {/* Label */}
+          <text x={x+25} y={18+34+10} fill={c} fillOpacity="0.7" fontSize="4.5"
+            fontFamily="monospace" textAnchor="middle" letterSpacing="1">
+            {['GUMROAD','ETSY','SEO'][i]}
+          </text>
+        </g>
       ))}
-      {/* Long trading desk */}
-      <rect x="16" y="62" width="168" height="14" fill={c} fillOpacity="0.2"
-        stroke={c} strokeWidth="0.8" strokeOpacity="0.85" />
-      <rect x="16" y="60" width="168" height="3" fill={c} fillOpacity="0.65" />
-      {/* Desk monitors */}
-      {[24,52,80,108,136,162].map((x,i)=>(
-        <Term key={i} x={x} y={48} color={c} id={id} w={18} h={13} rate={0.9+i*0.15} />
+
+      {/* World map dots (glowing) */}
+      {[[52,50],[80,44],[130,52],[160,46],[38,56],[170,58]].map(([mx,my],i)=>(
+        <circle key={i} cx={mx} cy={my} r="1.5" fill={c} fillOpacity="0.9"
+          filter={`url(#sg-${id})`}
+          style={{ animation:`roomBlink ${0.6+i*0.2}s ease-in-out infinite` }} />
       ))}
-      {/* Chairs */}
-      {[32,64,96,128,160].map((x,i)=>(
-        <ellipse key={i} cx={x} cy={82} rx="5" ry="2.2" fill={c} fillOpacity="0.3"
-          stroke={c} strokeWidth="0.5" strokeOpacity="0.6" />
+
+      {/* Post-it notes on wall */}
+      {[[14,22,'#ffdd77'],[14,36,'#ff99cc'],[14,50,'#88ddaa']].map(([px,py,pc],i)=>(
+        <rect key={i} x={px} y={py} width="12" height="10" fill={pc} fillOpacity="0.55"
+          stroke={pc} strokeWidth="0.4" strokeOpacity="0.8" />
       ))}
+      <text x="20" y="28" fill="#ffdd77" fillOpacity="0.9" fontSize="3.5" fontFamily="monospace">$15</text>
+      <text x="20" y="42" fill="#ff99cc" fillOpacity="0.9" fontSize="3.5" fontFamily="monospace">$49</text>
+      <text x="20" y="56" fill="#88ddaa" fillOpacity="0.9" fontSize="3.5" fontFamily="monospace">SEO</text>
+
+      {/* Desk with keyboard */}
+      <rect x="16" y="108" width="168" height="16" fill={c} fillOpacity="0.22"
+        stroke={c} strokeWidth="0.9" strokeOpacity="0.8" />
+      <rect x="16" y="106" width="168" height="4" fill={c} fillOpacity="0.55" />
+
       {/* Ticker tape */}
-      <rect x="14" y="92" width="172" height="7" fill="rgba(0,0,0,0.8)"
-        stroke={c} strokeWidth="0.5" strokeOpacity="0.65" />
-      {Array.from({length:16},(_,i)=>(
-        <circle key={i} cx={18+i*11} cy={95.5} r="1" fill={c} fillOpacity="0.9"
-          style={{ animation:`roomBlink ${0.4+i*0.09}s ease-in-out infinite` }} />
+      <rect x="14" y="96" width="172" height="8" fill="rgba(0,0,0,0.75)"
+        stroke={c} strokeWidth="0.5" strokeOpacity="0.6" />
+      {Array.from({length:14},(_,i)=>(
+        <circle key={i} cx={20+i*11} cy={100} r="1.1" fill={c} fillOpacity="0.9"
+          style={{ animation:`roomBlink ${0.35+i*0.1}s ease-in-out infinite` }} />
       ))}
-      {/* Floor chart */}
-      <rect x="16" y="108" width="168" height="50" fill="rgba(0,0,0,0.8)"
+
+      {/* Desk monitors */}
+      {[28,86,144].map((x,i)=>(
+        <Term key={i} x={x} y={95} color={c} id={id} w={22} h={12} rate={0.9+i*0.2} />
+      ))}
+
+      {/* Floor bar chart */}
+      <rect x="14" y="126" width="172" height="44" fill="rgba(0,0,0,0.75)"
         stroke={c} strokeWidth="0.8" strokeOpacity="0.8" />
-      {barH.map((h,i)=>(
-        <rect key={i} x={18+i*11.7} y={158-h} width={9.5} height={h}
-          fill={c} fillOpacity="0.9" filter={`url(#sg-${id})`}
-          style={{ animation:`roomBarPulse ${0.7+i*0.1}s ease-in-out infinite alternate`,
+      {[10,18,13,24,16,21,28,14,22,17,26,12,20,15].map((h,i)=>(
+        <rect key={i} x={17+i*11.8} y={170-h} width={9} height={h}
+          fill={c} fillOpacity="0.88" filter={`url(#sg-${id})`}
+          style={{ animation:`roomBarPulse ${0.65+i*0.1}s ease-in-out infinite alternate`,
                    transformBox:'fill-box', transformOrigin:'bottom' }} />
       ))}
-      {/* Price chart line */}
-      <polyline
-        points={barH.map((h,i)=>`${22+i*11.7},${158-h}`).join(' ')}
-        fill="none" stroke={c} strokeWidth="1.2" strokeOpacity="0.7"
-        filter={`url(#sg-${id})`} />
-      {/* Up arrow */}
-      <path d="M 180 118 L 180 108 M 176 112 L 180 108 L 184 112"
-        fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"
-        filter={`url(#gl-${id})`} />
+
       {/* Characters */}
-      <Char x={60} y={164} color={c} id={id} skin="#ffbb88" dur={0.6} />
-      <Char x={100} y={166} color={c} id={id} skin="#ffaa66" dur={0.8} />
-      <Char x={140} y={164} color={c} id={id} skin="#ff9944" dur={1.0} />
+      <Char x={54} y={182} color={c} id={id} variant="analyst" dur={0.6} />
+      <Char x={94} y={184} color={c} id={id} variant="analyst" dur={0.85} />
+      <Char x={134} y={182} color={c} id={id} variant="default" dur={1.05} />
+      <Mug x={168} y={107} color={c} />
       <Lamp x={14} y={14} color={c} id={id} rate={1.5} />
       <Lamp x={186} y={14} color={c} id={id} rate={1.2} />
     </>
   )
 }
 
-// ─── ROOM 3: DOC FORGE — Library ──────────────────────────────────────────────
-function DocRoom({ id, color, working }) {
+// ─── ROOM 3: NOTION — Productivity studio ────────────────────────────────────
+function NotionRoom({ id, color, working }) {
   const c = color
+  const cols = ['#88ddaa','#ffdd77','#ff99cc','#88ccff']
   return (
     <>
-      <Defs color={c} id={id} floor="cross" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Left bookshelves */}
-      {[20,38,56,74].map((y,i)=>(
-        <g key={`l${i}`}>
-          <rect x="10" y={y} width="26" height="16" fill={c} fillOpacity="0.16"
-            stroke={c} strokeWidth="0.7" strokeOpacity="0.75" />
-          {[0,1,2,3,4].map(j=>(
-            <rect key={j} x={12+j*4.5} y={y+2} width="3.5" height="12"
-              fill={c} fillOpacity={0.3+j*0.12} stroke="rgba(0,0,0,0.3)" strokeWidth="0.3" />
-          ))}
-        </g>
-      ))}
-      {/* Right bookshelves */}
-      {[20,38,56,74].map((y,i)=>(
-        <g key={`r${i}`}>
-          <rect x="164" y={y} width="26" height="16" fill={c} fillOpacity="0.16"
-            stroke={c} strokeWidth="0.7" strokeOpacity="0.75" />
-          {[0,1,2,3,4].map(j=>(
-            <rect key={j} x={166+j*4.5} y={y+2} width="3.5" height="12"
-              fill={c} fillOpacity={0.3+j*0.12} stroke="rgba(0,0,0,0.3)" strokeWidth="0.3" />
-          ))}
-        </g>
-      ))}
-      {/* Pedestal */}
-      <rect x="78" y="96" width="44" height="22" fill={c} fillOpacity="0.2"
+
+      {/* Kanban board on back wall */}
+      <rect x="24" y="18" width="152" height="60" fill="rgba(4,8,20,0.88)"
         stroke={c} strokeWidth="1.2" strokeOpacity="0.9" />
-      {/* Open glowing book */}
-      <g style={{ transformBox:'fill-box', transformOrigin:'100px 82px',
-        animation:`roomPulse ${working?'1.1s':'2.8s'} ease-in-out infinite` }}>
-        <rect x="76" y="72" width="48" height="22" fill="rgba(0,0,0,0.8)"
-          stroke={c} strokeWidth="0.9" strokeOpacity="1" filter={`url(#sg-${id})`} />
-        <line x1="100" y1="72" x2="100" y2="94" stroke={c} strokeWidth="0.6" strokeOpacity="0.8" />
-        {[76,88,102,114].map((x,i)=>(
-          <line key={i} x1={x} y1={i<2?78:78} x2={i<2?x+8:x+8} y2={i<2?78:78}
-            stroke={c} strokeOpacity="0.7" strokeWidth="0.5" />
-        ))}
-        {[76,88,102,114].map((x,i)=>(
-          <line key={`b${i}`} x1={x} y1={84} x2={x+8} y2={84}
-            stroke={c} strokeOpacity="0.55" strokeWidth="0.5" />
-        ))}
-        {[76,88,102,114].map((x,i)=>(
-          <line key={`c${i}`} x1={x} y1={90} x2={x+8} y2={90}
-            stroke={c} strokeOpacity="0.35" strokeWidth="0.5" />
-        ))}
-      </g>
-      {/* Book aura */}
-      <circle cx="100" cy="84" r="22" fill={c} fillOpacity="0.15" filter={`url(#gl-${id})`}
-        style={{ animation:`roomPulse ${working?'1s':'2.5s'} ease-in-out infinite` }} />
-      {/* Floating particles */}
-      {[[84,62],[116,62],[100,56],[76,78],[124,78],[86,108],[114,108]].map(([px,py],i)=>(
-        <circle key={i} cx={px} cy={py} r="1.4" fill={c} filter={`url(#gl-${id})`}
-          style={{ animation:`roomBlink ${0.8+i*0.22}s ease-in-out infinite` }} />
+      <rect x="24" y="18" width="152" height="3" fill={c} fillOpacity="0.7" />
+      {/* Kanban columns */}
+      {['TODO','DOING','DONE','REV'].map((label,i)=>(
+        <g key={i}>
+          <rect x={26+i*37} y={22} width="35" height="54" fill={cols[i]} fillOpacity="0.08"
+            stroke={cols[i]} strokeWidth="0.5" strokeOpacity="0.5" />
+          <text x={43+i*37} y={29} fill={cols[i]} fillOpacity="0.8" fontSize="4.5"
+            fontFamily="monospace" textAnchor="middle" letterSpacing="0.5">{label}</text>
+          {/* Cards in column */}
+          {[0,1,2].map(j=>(
+            <rect key={j} x={28+i*37} y={32+j*14} width="31" height="11"
+              fill={cols[i]} fillOpacity={working?0.22:0.14}
+              stroke={cols[i]} strokeWidth="0.5" strokeOpacity="0.7"
+              style={working&&j===0?{ animation:'roomBlink 1.2s ease-in-out infinite' }:undefined} />
+          ))}
+        </g>
       ))}
-      {/* Writing desks */}
-      <rect x="42" y="156" width="36" height="14" fill={c} fillOpacity="0.2"
-        stroke={c} strokeWidth="0.7" strokeOpacity="0.75" />
-      <rect x="122" y="156" width="36" height="14" fill={c} fillOpacity="0.2"
-        stroke={c} strokeWidth="0.7" strokeOpacity="0.75" />
-      <Term x={48} y={142} color={c} id={id} w={14} h={13} rate={1.3} />
-      <Term x={130} y={142} color={c} id={id} w={14} h={13} rate={1.6} />
-      {/* Scrolls on floor */}
-      {[[56,168],[68,170],[134,166],[146,170]].map(([px,py],i)=>(
-        <ellipse key={i} cx={px} cy={py} rx="3.5" ry="1.8" fill={c} fillOpacity="0.7"
-          stroke={c} strokeWidth="0.3" />
+
+      {/* Floating block widgets */}
+      {[[60,96],[100,92],[140,96],[80,108],[120,108]].map(([bx,by],i)=>(
+        <g key={i} style={{ animation:`roomFloat ${1.5+i*0.4}s ease-in-out infinite` }}>
+          <rect x={bx-8} y={by-5} width="16" height="10" fill={c} fillOpacity="0.25"
+            stroke={c} strokeWidth="0.7" strokeOpacity="0.8" />
+          <rect x={bx-6} y={by-3} width={8+i*2} height="1.5" fill={c} fillOpacity="0.7" />
+          <rect x={bx-6} y={by+0.5} width={5} height="1.5" fill={c} fillOpacity="0.45" />
+        </g>
       ))}
+
+      {/* Desk */}
+      <rect x="32" y="136" width="136" height="18" fill={c} fillOpacity="0.22"
+        stroke={c} strokeWidth="0.9" strokeOpacity="0.8" />
+      <rect x="32" y="134" width="136" height="4" fill={c} fillOpacity="0.55" />
+
+      {/* Glowing keyboard */}
+      <rect x="66" y="128" width="68" height="10" fill="rgba(4,4,18,0.85)"
+        stroke={c} strokeWidth="0.8" strokeOpacity="0.9" />
+      {Array.from({length:7},(_,i)=>(
+        <g key={i}>
+          {Array.from({length:3},(_,j)=>(
+            <rect key={j} x={68+i*9} y={129+j*3} width="7" height="2.2"
+              fill={c} fillOpacity={working?0.6:0.35}
+              style={{ animation:`roomBlink ${0.4+(i+j)*0.12}s ease-in-out infinite` }} />
+          ))}
+        </g>
+      ))}
+
+      {/* Monitor */}
+      <Scr x={70} y={116} w={60} h={16} color={c} id={id} content="text" rate={1.2} />
+
+      {/* Plants in corners */}
+      <Plant x={10} y={126} color={c} />
+      <Plant x={172} y={126} color={c} />
+
       {/* Characters */}
-      <Char x={52} y={180} color={c} id={id} skin="#55dd88" dur={0.65} />
-      <Char x={130} y={180} color={c} id={id} skin="#44cc77" dur={0.9} />
-      <Lamp x={56} y={12} color={c} id={id} rate={1.6} />
-      <Lamp x={144} y={12} color={c} id={id} rate={1.3} />
+      <Char x={55} y={164} color={c} id={id} variant="designer" dur={0.65} />
+      <Char x={120} y={164} color={c} id={id} variant="designer" dur={0.9} />
+      <Mug x={42} y={137} color={c} />
+      <Lamp x={16} y={118} color={c} id={id} rate={1.4} />
+      <Lamp x={184} y={118} color={c} id={id} rate={1.1} />
+      <Lamp x={100} y={8} color={c} id={id} rate={2.2} />
     </>
   )
 }
 
-// ─── ROOM 4: FINANCE — Vault ───────────────────────────────────────────────────
+// ─── ROOM 4: FINANCE — Spreadsheet lab ───────────────────────────────────────
 function FinanceRoom({ id, color, working }) {
   const c = color
   return (
     <>
-      <Defs color={c} id={id} floor="iso" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Vault door */}
-      <g style={{ transformBox:'fill-box', transformOrigin:'100px 76px',
-        animation:`roomSpin ${working?8:22}s linear infinite` }}>
-        <circle cx="100" cy="76" r="46" fill="rgba(0,0,0,0.72)"
-          stroke={c} strokeWidth="2" strokeOpacity="0.95" />
-        <circle cx="100" cy="76" r="36" fill="none" stroke={c} strokeWidth="1" strokeOpacity="0.65" />
-        <circle cx="100" cy="76" r="26" fill="none" stroke={c} strokeWidth="0.7" strokeOpacity="0.45" />
-        {[0,45,90,135,180,225,270,315].map((a,i)=>{
-          const r=a*Math.PI/180
-          return <line key={i}
-            x1={100+Math.cos(r)*10} y1={76+Math.sin(r)*10}
-            x2={100+Math.cos(r)*36} y2={76+Math.sin(r)*36}
-            stroke={c} strokeWidth="0.9" strokeOpacity="0.75" />
-        })}
-        <circle cx="100" cy="76" r="8" fill={c} fillOpacity="0.45"
-          stroke={c} strokeWidth="1.5" />
-        <line x1="100" y1="68" x2="100" y2="84" stroke={c} strokeWidth="1.5" strokeOpacity="0.9" />
-        <line x1="92" y1="76" x2="108" y2="76" stroke={c} strokeWidth="1.5" strokeOpacity="0.9" />
-      </g>
-      {/* Vault glow */}
-      <circle cx="100" cy="76" r="52" fill={c} fillOpacity="0.06" filter={`url(#gl-${id})`}
-        style={{ animation:`roomPulse ${working?'1.2s':'3s'} ease-in-out infinite` }} />
-      {/* Gold bars left */}
+
+      {/* Giant spreadsheet display */}
+      <rect x="14" y="18" width="122" height="68" fill="rgba(4,4,18,0.9)"
+        stroke={c} strokeWidth="1.2" strokeOpacity="0.9" />
+      <rect x="14" y="18" width="122" height="3" fill={c} fillOpacity="0.7" />
+      {/* Grid cells */}
+      {Array.from({length:7},(_,row)=>
+        Array.from({length:6},(_,col)=>(
+          <rect key={`${row}-${col}`}
+            x={16+col*19} y={23+row*9} width="18" height="8"
+            fill={c} fillOpacity={working&&row===2&&col===3?0.35:0.05}
+            stroke={c} strokeWidth="0.3" strokeOpacity="0.35" />
+        ))
+      )}
+      {/* Numbers in cells */}
+      {[[16,30,'1.2k'],[35,30,'850'],[54,30,'2.4k'],[16,39,'945'],[35,39,'1.1k']].map(([cx,cy,val],i)=>(
+        <text key={i} x={cx+9} y={cy+6} fill={c} fillOpacity="0.8" fontSize="4"
+          fontFamily="monospace" textAnchor="middle">{val}</text>
+      ))}
+
+      {/* Pie chart (right side) */}
+      <circle cx="162" cy="52" r="28" fill="rgba(4,4,18,0.85)"
+        stroke={c} strokeWidth="1" strokeOpacity="0.6" />
+      <path d="M162,52 L162,24 A28,28 0 0,1 186,66 Z"
+        fill={c} fillOpacity="0.7" filter={`url(#sg-${id})`} />
+      <path d="M162,52 L186,66 A28,28 0 0,1 148,78 Z"
+        fill={c} fillOpacity="0.45" />
+      <path d="M162,52 L148,78 A28,28 0 1,1 162,24 Z"
+        fill={c} fillOpacity="0.2" />
+      <circle cx="162" cy="52" r="10" fill="rgba(4,4,18,0.9)" />
+      <text x="162" y="55" fill={c} fillOpacity="0.85" fontSize="5"
+        fontFamily="monospace" textAnchor="middle">42%</text>
+
+      {/* Calculator on desk */}
+      <rect x="14" y="92" width="30" height="22" fill="rgba(8,8,24,0.9)"
+        stroke={c} strokeWidth="0.8" strokeOpacity="0.85" />
+      <rect x="16" y="94" width="26" height="8" fill={c} fillOpacity="0.55" />
+      {[0,1,2,3].map(row=>[0,1,2].map(col=>(
+        <rect key={`${row}-${col}`}
+          x={16+col*8} y={104+row*2.5} width="6.5" height="2"
+          fill={c} fillOpacity="0.4" stroke="rgba(0,0,0,0.4)" strokeWidth="0.2" />
+      )))}
+
+      {/* Bar chart on wall right */}
+      <rect x="144" y="92" width="42" height="30" fill="rgba(0,0,0,0.75)"
+        stroke={c} strokeWidth="0.7" strokeOpacity="0.7" />
+      {[8,14,10,18,12,16].map((h,i)=>(
+        <rect key={i} x={146+i*6.5} y={122-h} width={5} height={h}
+          fill={c} fillOpacity="0.85"
+          style={{ animation:`roomBarPulse ${0.7+i*0.15}s ease-in-out infinite alternate`,
+                   transformBox:'fill-box', transformOrigin:'bottom' }} />
+      ))}
+
+      {/* Gold bars / coins */}
       {[0,1,2,3].map(i=>(
-        <rect key={`lb${i}`} x={14} y={152-i*5} width="24" height="4.5"
-          fill={c} fillOpacity={0.55+i*0.1} stroke="#080808" strokeWidth="0.4" />
+        <rect key={i} x={62} y={150-i*4} width="20" height="3.5"
+          fill={c} fillOpacity={0.5+i*0.1} stroke="rgba(0,0,0,0.4)" strokeWidth="0.3" />
       ))}
-      {/* Gold bars right */}
-      {[0,1,2,3,4].map(i=>(
-        <rect key={`rb${i}`} x={162} y={148-i*5} width="24" height="4.5"
-          fill={c} fillOpacity={0.55+i*0.08} stroke="#080808" strokeWidth="0.4" />
-      ))}
-      {/* Coin piles center */}
-      {[[72,170],[80,172],[88,168],[108,170],[116,172],[124,168],[100,174]].map(([px,py],i)=>(
+      {[102,112,122,132].map((cx,i)=>(
         <g key={i}>
-          <circle cx={px} cy={py} r="3" fill={c} fillOpacity="0.85"
-            stroke="#050510" strokeWidth="0.3" />
-          <circle cx={px-0.8} cy={py-0.8} r="0.7" fill="#fff" fillOpacity="0.5" />
+          <circle cx={cx} cy={154} r="4" fill={c} fillOpacity="0.8" stroke="rgba(0,0,0,0.3)" strokeWidth="0.3" />
+          <circle cx={cx-1} cy={153} r="1" fill="#fff" fillOpacity="0.4" />
         </g>
       ))}
-      {/* Counter terminals */}
-      <Scr x={14} y={122} w={36} h={14} color={c} id={id} content="bars" rate={1.3} />
-      <Scr x={150} y={122} w={36} h={14} color={c} id={id} content="line" rate={1.1} />
+
+      {/* Desk */}
+      <rect x="14" y="128" width="172" height="16" fill={c} fillOpacity="0.22"
+        stroke={c} strokeWidth="0.9" strokeOpacity="0.8" />
+      <rect x="14" y="126" width="172" height="4" fill={c} fillOpacity="0.5" />
+      <Term x={152} y={112} color={c} id={id} w={20} h={14} rate={1.2} />
+
       {/* Characters */}
-      <Char x={90} y={140} color={c} id={id} skin="#ffcc44" dur={0.9} />
-      <Char x={44} y={178} color={c} id={id} skin="#eeaa22" dur={1.1} />
+      <Char x={50} y={162} color={c} id={id} variant="finance" dur={0.9} />
+      <Char x={92} y={164} color={c} id={id} variant="finance" dur={1.1} />
       <Lamp x={14} y={14} color={c} id={id} rate={1.4} />
       <Lamp x={186} y={14} color={c} id={id} rate={1.2} />
-      <Lamp x={100} y={130} color={c} id={id} rate={1.7} />
+      <Lamp x={100} y={128} color={c} id={id} rate={1.8} />
     </>
   )
 }
 
-// ─── ROOM 5: STRATEGY — War room ──────────────────────────────────────────────
+// ─── ROOM 5: STRATEGY — Freelancer operations ─────────────────────────────────
 function StrategyRoom({ id, color, working }) {
   const c = color
   return (
     <>
-      <Defs color={c} id={id} floor="dot" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Wall screens */}
-      {[12,50,88,124,162].map((x,i)=>(
-        <Scr key={i} x={x} y={20} w={30} h={15} color={c} id={id}
-          content={['line','bars','dot','line','bars'][i]} rate={0.9+i*0.2} />
-      ))}
-      {/* Holo table */}
-      <ellipse cx="100" cy="122" rx="62" ry="18" fill="rgba(0,0,0,0.75)"
-        stroke={c} strokeWidth="1.2" strokeOpacity="0.85" />
-      <ellipse cx="100" cy="120" rx="60" ry="17" fill={c} fillOpacity="0.22"
-        filter={`url(#sg-${id})`} />
-      {/* Holo projection above table */}
-      {[1,2].map(i=>(
-        <g key={i} style={{ transformBox:'fill-box', transformOrigin:'100px 90px',
-          animation:`${i%2===0?'roomSpin':'roomSpinRev'} ${working?3+i:8+i*2}s linear infinite` }}>
-          <ellipse cx="100" cy="90" rx={30+i*14} ry={8+i*4} fill="none"
-            stroke={c} strokeWidth="0.8" strokeOpacity={0.55-i*0.12}
-            strokeDasharray={i===0?'3 3':'none'} />
-          <circle cx={100+(30+i*14)} cy="90" r="2.2" fill={c} filter={`url(#gl-${id})`} />
+
+      {/* Wall: Gantt chart / timeline */}
+      <rect x="14" y="18" width="172" height="50" fill="rgba(4,4,18,0.88)"
+        stroke={c} strokeWidth="1.2" strokeOpacity="0.9" />
+      <rect x="14" y="18" width="172" height="3" fill={c} fillOpacity="0.65" />
+      <text x="100" y="26" fill={c} fillOpacity="0.7" fontSize="5" fontFamily="monospace"
+        textAnchor="middle" letterSpacing="2">PROJECT TIMELINE</text>
+      {/* Gantt bars */}
+      {[
+        [20,30,60,'RESEARCH','#88ccff'],
+        [50,38,80,'DESIGN','#cc88ff'],
+        [90,46,50,'BUILD','#88ddaa'],
+        [60,54,40,'REVIEW','#ffdd77'],
+        [110,62,30,'DEPLOY','#ff99cc'],
+      ].map(([startX,y,w,label,bc],i)=>(
+        <g key={i}>
+          <text x="16" y={y+4} fill={c} fillOpacity="0.55" fontSize="3.5" fontFamily="monospace">{label}</text>
+          <rect x={startX} y={y} width={w} height="5.5" fill={bc} fillOpacity="0.5"
+            stroke={bc} strokeWidth="0.4" strokeOpacity="0.9" />
         </g>
       ))}
-      <circle cx="100" cy="90" r="7" fill={c} filter={`url(#gl-${id})`}
-        style={{ animation:`roomPulse ${working?'0.9s':'2.2s'} ease-in-out infinite` }} />
-      <circle cx="100" cy="90" r="2.5" fill="#fff" filter={`url(#gl-${id})`} />
-      {/* Table beam */}
-      <path d="M 84 108 L 100 90 L 116 108 Z" fill={c} fillOpacity="0.1"
-        stroke={c} strokeWidth="0.4" strokeOpacity="0.4" />
-      {/* Floor strategy markers */}
-      {[[60,115],[140,115],[70,130],[130,130],[100,136]].map(([px,py],i)=>(
-        <circle key={i} cx={px} cy={py} r="1.5" fill={c} filter={`url(#gl-${id})`}
-          style={{ animation:`roomBlink ${0.9+i*0.28}s ease-in-out infinite` }} />
+
+      {/* Blueprint table */}
+      <ellipse cx="100" cy="132" rx="68" ry="18" fill={c} fillOpacity="0.14"
+        stroke={c} strokeWidth="1.3" strokeOpacity="0.8" />
+      <ellipse cx="100" cy="130" rx="66" ry="16" fill={c} fillOpacity="0.06" />
+      {/* Blueprint grid on table */}
+      {Array.from({length:5},(_,i)=>(
+        <line key={`h${i}`} x1={40} y1={122+i*5} x2={160} y2={122+i*5}
+          stroke={c} strokeOpacity="0.3" strokeWidth="0.4" />
       ))}
-      {/* Floor terminals */}
-      <Term x={14} y={154} color={c} id={id} w={20} h={16} rate={1.5} />
-      <Term x={166} y={154} color={c} id={id} w={20} h={16} rate={1.2} />
+      {Array.from({length:7},(_,i)=>(
+        <line key={`v${i}`} x1={40+i*20} y1={118} x2={40+i*20} y2={142}
+          stroke={c} strokeOpacity="0.3" strokeWidth="0.4" />
+      ))}
+
+      {/* Invoice templates on wall sides */}
+      <rect x="14" y="74" width="28" height="36" fill="rgba(4,4,18,0.85)"
+        stroke={c} strokeWidth="0.7" strokeOpacity="0.8" />
+      {[0,1,2,3,4].map(i=>(
+        <rect key={i} x={16} y={77+i*5} width={i%2===0?22:16} height="2.5"
+          fill={c} fillOpacity="0.4" />
+      ))}
+      <text x="28" y="114" fill={c} fillOpacity="0.6" fontSize="4" fontFamily="monospace" textAnchor="middle">SOP</text>
+
+      <rect x="158" y="74" width="28" height="36" fill="rgba(4,4,18,0.85)"
+        stroke={c} strokeWidth="0.7" strokeOpacity="0.8" />
+      {[0,1,2,3,4].map(i=>(
+        <rect key={i} x={160} y={77+i*5} width={i%2===0?22:16} height="2.5"
+          fill={c} fillOpacity="0.4" />
+      ))}
+      <text x="172" y="114" fill={c} fillOpacity="0.6" fontSize="4" fontFamily="monospace" textAnchor="middle">INV</text>
+
+      {/* Filing cabinet */}
+      <rect x="14" y="148" width="22" height="32" fill={c} fillOpacity="0.18"
+        stroke={c} strokeWidth="0.8" strokeOpacity="0.8" />
+      {[0,1,2].map(i=>(
+        <rect key={i} x={15} y={150+i*10} width="20" height="8"
+          fill={c} fillOpacity="0.08" stroke={c} strokeWidth="0.4" strokeOpacity="0.6" />
+      ))}
+      {[0,1,2].map(i=>(
+        <circle key={i} cx={25} cy={154+i*10} r="1.2" fill={c} fillOpacity="0.7" />
+      ))}
+
       {/* Characters around table */}
-      <Char x={34} y={114} color={c} id={id} skin="#cc88ff" dur={0.7} />
-      <Char x={162} y={114} color={c} id={id} skin="#bb77ee" dur={0.9} />
-      <Char x={70} y={174} color={c} id={id} skin="#aa66dd" dur={0.8} />
-      <Char x={120} y={176} color={c} id={id} skin="#cc88ff" dur={1.1} />
-      <Lamp x={14} y={100} color={c} id={id} rate={1.4} />
-      <Lamp x={186} y={100} color={c} id={id} rate={1.1} />
+      <Char x={34} y={116} color={c} id={id} variant="business" dur={0.7} />
+      <Char x={158} y={116} color={c} id={id} variant="business" dur={0.9} />
+      <Char x={80} y={162} color={c} id={id} variant="business" dur={0.8} />
+      <Char x={110} y={164} color={c} id={id} variant="default" dur={1.1} />
+
+      <Lamp x={14} y={102} color={c} id={id} rate={1.4} />
+      <Lamp x={186} y={102} color={c} id={id} rate={1.1} />
     </>
   )
 }
 
-// ─── ROOM 6: CONTENT — Studio ─────────────────────────────────────────────────
+// ─── ROOM 6: CONTENT — Copywriter studio ──────────────────────────────────────
 function ContentRoom({ id, color, working }) {
   const c = color
-  const eqH = [6,11,8,16,10,14,20,12,18,14,22,10,16,12,18,10,14,8]
+  const eqH = [6,11,8,16,10,14,20,12,18,14,22,10,16,12,18]
   return (
     <>
-      <Defs color={c} id={id} floor="dot" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Big display wall */}
-      <rect x="16" y="18" width="168" height="52" fill="rgba(0,0,0,0.9)"
+
+      {/* Big text wall display */}
+      <rect x="14" y="18" width="172" height="54" fill="rgba(4,4,18,0.92)"
         stroke={c} strokeWidth="1.2" strokeOpacity="1" />
-      <rect x="16" y="18" width="168" height="3" fill={c} fillOpacity="0.75" />
-      {/* Text content on screen */}
-      {[0,1,2,3,4,5].map(i=>(
-        <rect key={i} x={22} y={26+i*7} width={i%2===0?150:110} height="2.5"
-          fill={c} fillOpacity={i===0?1:0.6}
-          style={{ animation:`roomBlink ${0.7+i*0.35}s ease-in-out infinite` }} />
+      <rect x="14" y="18" width="172" height="3" fill={c} fillOpacity="0.75" />
+      {/* Scrolling text lines */}
+      {[0,1,2,3,4,5,6].map(i=>(
+        <rect key={i} x={20} y={24+i*6} width={i%3===0?150:i%3===1?110:130} height="2.5"
+          fill={c} fillOpacity={i===0?0.95:0.55}
+          style={{ animation:`roomBlink ${0.6+i*0.3}s ease-in-out infinite` }} />
       ))}
-      {/* Cursor */}
-      <rect x="136" y="61" width="4" height="4" fill={c} filter={`url(#gl-${id})`}
+      {/* Cursor blink */}
+      <rect x="130" y="60" width="5" height="5" fill={c} filter={`url(#gl-${id})`}
         style={{ animation:'roomBlink 0.5s ease-in-out infinite' }} />
-      {/* Spotlight cones */}
-      <path d="M 50 18 L 65 80 L 110 80 L 125 18 Z" fill={c} fillOpacity="0.04"
-        stroke={c} strokeWidth="0.4" strokeOpacity="0.2" />
+
+      {/* Neon signs */}
+      <NeonSign x={14} y={78} text="CONVERT" color={c} id={id} w={48} h={11} />
+      <NeonSign x={76} y={78} text="BUY NOW" color={c} id={id} w={48} h={11} />
+      <NeonSign x={138} y={78} text="LIMITED" color={c} id={id} w={48} h={11} />
+
+      {/* Glowing mechanical keyboard */}
+      <rect x="32" y="120" width="96" height="20" fill="rgba(4,4,18,0.9)"
+        stroke={c} strokeWidth="0.9" strokeOpacity="0.95" />
+      {Array.from({length:10},(_,i)=>
+        Array.from({length:3},(_,j)=>(
+          <rect key={`${i}-${j}`}
+            x={34+i*9} y={122+j*6} width="7" height="4.5"
+            fill={c} fillOpacity={working?0.55:0.3}
+            stroke="rgba(0,0,0,0.5)" strokeWidth="0.3"
+            style={{ animation:`roomBlink ${0.3+(i+j)*0.1}s ease-in-out infinite` }} />
+        ))
+      )}
+
+      {/* Book stack */}
+      {[0,1,2].map(i=>(
+        <rect key={i} x={142+i*3} y={120-i*6} width="18" height="5"
+          fill={['#88ccff','#ff99cc','#88ddaa'][i]} fillOpacity="0.65"
+          stroke="rgba(0,0,0,0.4)" strokeWidth="0.4" />
+      ))}
+
       {/* Writing desk */}
-      <rect x="38" y="82" width="124" height="14" fill={c} fillOpacity="0.2"
-        stroke={c} strokeWidth="0.8" strokeOpacity="0.85" />
-      <rect x="38" y="80" width="124" height="3" fill={c} fillOpacity="0.6" />
-      {/* Desk items */}
-      <Term x={48} y={70} color={c} id={id} w={22} h={12} rate={1.2} />
-      <Term x={80} y={70} color={c} id={id} w={22} h={12} rate={1.6} />
-      <Term x={120} y={70} color={c} id={id} w={22} h={12} rate={1.0} />
-      {/* Microphone */}
-      <rect x="97" y="73" width="6" height="9" fill="#0a0a1a" stroke={c} strokeWidth="0.5" />
-      <circle cx="100" cy="72" r="4" fill={c} fillOpacity="0.9" filter={`url(#sg-${id})`} />
-      <circle cx="100" cy="72" r="1.5" fill="#fff" fillOpacity="0.8" />
+      <rect x="14" y="142" width="172" height="16" fill={c} fillOpacity="0.22"
+        stroke={c} strokeWidth="0.9" strokeOpacity="0.8" />
+      <rect x="14" y="140" width="172" height="4" fill={c} fillOpacity="0.55" />
+
       {/* EQ bars */}
-      <rect x="16" y="106" width="168" height="30" fill="rgba(0,0,0,0.8)"
-        stroke={c} strokeWidth="0.7" strokeOpacity="0.7" />
+      <rect x="14" y="106" width="172" height="28" fill="rgba(0,0,0,0.75)"
+        stroke={c} strokeWidth="0.6" strokeOpacity="0.65" />
       {eqH.map((h,i)=>(
-        <rect key={i} x={18+i*9} y={136-h} width="7" height={h}
-          fill={c} fillOpacity="0.9" filter={`url(#sg-${id})`}
-          style={{ animation:`roomBarPulse ${0.35+i*0.055}s ease-in-out infinite alternate`,
+        <rect key={i} x={16+i*10.8} y={134-h} width="8.5" height={h}
+          fill={c} fillOpacity="0.88" filter={`url(#sg-${id})`}
+          style={{ animation:`roomBarPulse ${0.28+i*0.05}s ease-in-out infinite alternate`,
                    transformBox:'fill-box', transformOrigin:'bottom' }} />
       ))}
-      {/* Speakers */}
-      {[[14,152],[178,152]].map(([sx,sy],i)=>(
-        <g key={i}>
-          <rect x={sx} y={sy} width="14" height="18" fill={c} fillOpacity="0.18"
-            stroke={c} strokeWidth="0.7" strokeOpacity="0.8" />
-          <circle cx={sx+7} cy={sy+9} r="4.5" fill={c} fillOpacity="0.5" />
-          <circle cx={sx+7} cy={sy+9} r="2" fill={c} filter={`url(#gl-${id})`} />
-        </g>
-      ))}
+
+      <Mug x={170} y={143} color={c} />
+
       {/* Characters */}
-      <Char x={93} y={148} color={c} id={id} skin="#ff88cc" dur={0.6} />
-      <Char x={50} y={178} color={c} id={id} skin="#ee66bb" dur={0.8} />
-      <Char x={140} y={178} color={c} id={id} skin="#ff88cc" dur={1.0} />
-      <Lamp x={38} y={14} color={c} id={id} rate={0.9} />
-      <Lamp x={162} y={14} color={c} id={id} rate={1.3} />
+      <Char x={48} y={168} color={c} id={id} variant="writer" dur={0.6} />
+      <Char x={94} y={166} color={c} id={id} variant="writer" dur={0.8} />
+      <Char x={136} y={168} color={c} id={id} variant="default" dur={1.0} />
+      <Lamp x={22} y={14} color={c} id={id} rate={0.9} />
+      <Lamp x={178} y={14} color={c} id={id} rate={1.3} />
     </>
   )
 }
 
-// ─── ROOM 7: PUBLISH — Print shop ─────────────────────────────────────────────
+// ─── ROOM 7: PUBLISH — Digital broadcast station ──────────────────────────────
 function PublishRoom({ id, color, working }) {
   const c = color
   return (
     <>
-      <Defs color={c} id={id} floor="tile" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
+
       {/* Antenna tower */}
-      <line x1="100" y1="18" x2="100" y2="54" stroke={c} strokeWidth="2" strokeOpacity="0.9" />
-      <circle cx="100" cy="18" r="4" fill={c} filter={`url(#gl-${id})`}
-        style={{ animation:`roomPulse ${working?'0.7s':'1.8s'} ease-in-out infinite` }} />
-      {[10,16,22,28].map((r,i)=>(
+      <line x1="100" y1="18" x2="100" y2="58" stroke={c} strokeWidth="2.5" strokeOpacity="0.9" />
+      <circle cx="100" cy="18" r="5" fill={c} filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'0.65s':'1.8s'} ease-in-out infinite` }} />
+      {[10,18,26,34].map((r,i)=>(
         <path key={i} d={`M ${100-r} 18 A ${r} ${r} 0 0 1 ${100+r} 18`}
-          fill="none" stroke={c} strokeWidth="0.8" strokeOpacity={0.7-i*0.12}
-          style={{ animation:`roomPulse ${1+i*0.35}s ease-in-out infinite` }} />
+          fill="none" stroke={c} strokeWidth="0.9" strokeOpacity={0.75-i*0.12}
+          style={{ animation:`roomPulse ${0.9+i*0.35}s ease-in-out infinite` }} />
       ))}
-      {/* Press body */}
-      <rect x="18" y="56" width="164" height="46" fill={c} fillOpacity="0.18"
-        stroke={c} strokeWidth="1.2" strokeOpacity="0.9" />
-      <rect x="18" y="56" width="164" height="4" fill={c} fillOpacity="0.7" />
-      {/* Spinning rollers */}
-      {[[42,78],[100,78],[158,78]].map(([rx,ry],i)=>(
-        <g key={i} style={{ transformBox:'fill-box', transformOrigin:`${rx}px ${ry}px`,
-          animation:`${i%2===0?'roomSpin':'roomSpinRev'} ${working?0.7:2}s linear infinite` }}>
-          <circle cx={rx} cy={ry} r="12" fill="rgba(0,0,0,0.75)"
-            stroke={c} strokeWidth="1" strokeOpacity="0.9" />
-          <line x1={rx-10} y1={ry} x2={rx+10} y2={ry} stroke={c} strokeWidth="0.7" strokeOpacity="0.65" />
-          <line x1={rx} y1={ry-10} x2={rx} y2={ry+10} stroke={c} strokeWidth="0.7" strokeOpacity="0.65" />
-          <circle cx={rx} cy={ry} r="2.5" fill={c} fillOpacity="0.8" />
+
+      {/* Server racks (sides) */}
+      {[14,30].map((x,ri)=>(
+        <g key={`left-${ri}`}>
+          <rect x={x} y={18} width="12" height="70" fill={c} fillOpacity="0.16"
+            stroke={c} strokeWidth="0.8" strokeOpacity="0.9" />
+          {Array.from({length:7},(_,j)=>(
+            <g key={j}>
+              <rect x={x+1.5} y={21+j*9} width="9" height="7"
+                fill="rgba(0,0,0,0.8)" stroke={c} strokeOpacity="0.4" strokeWidth="0.3" />
+              <circle cx={x+10} cy={24+j*9} r="0.9"
+                fill={c} filter={`url(#sg-${id})`}
+                style={{ animation:`roomBlink ${0.4+(ri+j)*0.15}s ease-in-out infinite` }} />
+            </g>
+          ))}
         </g>
       ))}
-      {/* Conveyor belt */}
-      <rect x="14" y="110" width="172" height="10" fill="rgba(0,0,0,0.8)"
+      {[158,174].map((x,ri)=>(
+        <g key={`right-${ri}`}>
+          <rect x={x} y={18} width="12" height="70" fill={c} fillOpacity="0.16"
+            stroke={c} strokeWidth="0.8" strokeOpacity="0.9" />
+          {Array.from({length:7},(_,j)=>(
+            <g key={j}>
+              <rect x={x+1.5} y={21+j*9} width="9" height="7"
+                fill="rgba(0,0,0,0.8)" stroke={c} strokeOpacity="0.4" strokeWidth="0.3" />
+              <circle cx={x+1.5} cy={24+j*9} r="0.9"
+                fill={c} filter={`url(#sg-${id})`}
+                style={{ animation:`roomBlink ${0.4+(ri+j)*0.17}s ease-in-out infinite` }} />
+            </g>
+          ))}
+        </g>
+      ))}
+
+      {/* Main publish console */}
+      <rect x="52" y="58" width="96" height="48" fill={c} fillOpacity="0.18"
+        stroke={c} strokeWidth="1.2" strokeOpacity="0.9" />
+      <rect x="52" y="58" width="96" height="4" fill={c} fillOpacity="0.7" />
+
+      {/* BIG PUBLISH button */}
+      <circle cx="100" cy="82" r="18" fill={c} fillOpacity="0.2"
+        stroke={c} strokeWidth="2" strokeOpacity="0.95" />
+      <circle cx="100" cy="82" r="14" fill={c} fillOpacity={working?0.7:0.4}
+        filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'0.7s':'2s'} ease-in-out infinite` }} />
+      <text x="100" y="85" fill="#fff" fillOpacity="0.95" fontSize="6"
+        fontFamily="Orbitron,monospace" textAnchor="middle" letterSpacing="1">PUB</text>
+
+      {/* Upload progress */}
+      <rect x="52" y="116" width="96" height="8" fill="rgba(0,0,0,0.75)"
+        stroke={c} strokeWidth="0.6" strokeOpacity="0.7" />
+      <rect x="53" y="117" width={working?85:42} height="6" fill={c} fillOpacity="0.8"
+        filter={`url(#sg-${id})`}
+        style={{ animation:working?'roomUpload 1.5s ease-in-out infinite':undefined }} />
+      <text x="100" y="122" fill={c} fillOpacity="0.7" fontSize="4.5"
+        fontFamily="monospace" textAnchor="middle">{working?'UPLOADING...':'READY'}</text>
+
+      {/* API status */}
+      <rect x="54" y="130" width="92" height="22" fill="rgba(0,0,0,0.75)"
+        stroke={c} strokeWidth="0.6" strokeOpacity="0.65" />
+      {['API: CONNECTED','STATUS: 200 OK','GUMROAD: LIVE'].map((txt,i)=>(
+        <text key={i} x="100" y={137+i*6} fill={c} fillOpacity={0.7-i*0.1} fontSize="4.5"
+          fontFamily="monospace" textAnchor="middle">{txt}</text>
+      ))}
+
+      {/* Conveyor */}
+      <rect x="14" y="158" width="172" height="10" fill="rgba(0,0,0,0.8)"
         stroke={c} strokeWidth="0.7" strokeOpacity="0.7" />
-      {[26,50,74,98,122,146,168].map((bx,i)=>(
-        <rect key={i} x={bx} y="112" width="16" height="6"
-          fill={c} fillOpacity="0.75" stroke="#0a0a1a" strokeWidth="0.3"
+      {[22,50,78,106,134,162].map((bx,i)=>(
+        <rect key={i} x={bx} y="160" width="18" height="6"
+          fill={c} fillOpacity="0.7" stroke="rgba(0,0,0,0.4)" strokeWidth="0.3"
           style={{ animation:`roomMoveRight ${working?1.4:3}s linear infinite` }} />
       ))}
-      <circle cx="14" cy="115" r="3.5" fill={c} fillOpacity="0.4" stroke={c} strokeWidth="0.5" />
-      <circle cx="186" cy="115" r="3.5" fill={c} fillOpacity="0.4" stroke={c} strokeWidth="0.5" />
-      {/* Output tray */}
-      <rect x="50" y="138" width="100" height="22" fill={c} fillOpacity="0.14"
-        stroke={c} strokeWidth="0.8" strokeOpacity="0.7" />
-      {[0,1,2,3,4,5].map(i=>(
-        <rect key={i} x={66-i*2} y={140+i*3} width={68+i*4} height="2.5"
-          fill={c} fillOpacity={0.85-i*0.12} />
-      ))}
+      <circle cx="14" cy="163" r="4" fill={c} fillOpacity="0.45" stroke={c} strokeWidth="0.5" />
+      <circle cx="186" cy="163" r="4" fill={c} fillOpacity="0.45" stroke={c} strokeWidth="0.5" />
+
       {/* Characters */}
-      <Char x={24} y={148} color={c} id={id} skin="#ffbb55" dur={0.55} />
-      <Char x={162} y={148} color={c} id={id} skin="#ffaa44" dur={0.75} />
-      <Char x={92} y={180} color={c} id={id} skin="#ff9933" dur={0.9} />
-      <Lamp x={14} y={40} color={c} id={id} rate={1.3} />
-      <Lamp x={186} y={40} color={c} id={id} rate={1.0} />
+      <Char x={22} y={176} color={c} id={id} variant="publisher" dur={0.55} />
+      <Char x={158} y={176} color={c} id={id} variant="publisher" dur={0.75} />
+      <Char x={90} y={198} color={c} id={id} variant="default" dur={0.95} />
+      <Lamp x={14} y={44} color={c} id={id} rate={1.3} />
+      <Lamp x={186} y={44} color={c} id={id} rate={1.0} />
     </>
   )
 }
 
-// ─── ROOM 8: ANALYTICS — Data center ──────────────────────────────────────────
+// ─── ROOM 8: ANALYTICS — Data observatory ────────────────────────────────────
 function AnalyticsRoom({ id, color, working }) {
   const c = color
   return (
     <>
-      <Defs color={c} id={id} floor="tile" />
+      <Defs color={c} id={id} />
       <Bg color={c} id={id} />
-      {/* Left server racks */}
-      {[14,30,46].map((x,i)=>(
-        <g key={`lr${i}`}>
-          <rect x={x} y={18} width="12" height="96" fill={c} fillOpacity="0.16"
-            stroke={c} strokeWidth="0.8" strokeOpacity="0.9" />
-          {Array.from({length:9},(_,j)=>(
-            <rect key={j} x={x+1.5} y={21+j*10} width="9" height="7"
-              fill="rgba(0,0,0,0.8)" stroke={c} strokeOpacity="0.5" strokeWidth="0.3" />
-          ))}
-          {Array.from({length:9},(_,j)=>(
-            <circle key={`led${j}`} cx={x+10} cy={23+j*10} r="0.8"
-              fill={c} filter={`url(#sg-${id})`}
-              style={{ animation:`roomBlink ${0.4+(i+j)*0.15}s ease-in-out infinite` }} />
-          ))}
+
+      {/* Revenue chart (wall left) */}
+      <rect x="14" y="18" width="80" height="56" fill="rgba(4,4,18,0.88)"
+        stroke={c} strokeWidth="1" strokeOpacity="0.9" />
+      <rect x="14" y="18" width="80" height="3" fill={c} fillOpacity="0.65" />
+      <text x="54" y="26" fill={c} fillOpacity="0.7" fontSize="4.5" textAnchor="middle"
+        fontFamily="monospace" letterSpacing="1">REVENUE</text>
+      <Scr x={17} y={28} w={74} h={32} color={c} id={id} content="line" rate={1.1} />
+
+      {/* Top products leaderboard (wall right) */}
+      <rect x="106" y="18" width="80" height="56" fill="rgba(4,4,18,0.88)"
+        stroke={c} strokeWidth="1" strokeOpacity="0.9" />
+      <rect x="106" y="18" width="80" height="3" fill={c} fillOpacity="0.65" />
+      <text x="146" y="26" fill={c} fillOpacity="0.7" fontSize="4.5" textAnchor="middle"
+        fontFamily="monospace" letterSpacing="1">TOP PRODUCTS</text>
+      {['#1 Notion CRM','#2 Finance Kit','#3 SOP Bundle','#4 Copy Pack'].map((txt,i)=>(
+        <g key={i}>
+          <rect x={108} y={29+i*10} width={74} height="8"
+            fill={c} fillOpacity={i===0?0.18:0.06} stroke={c} strokeWidth="0.3" strokeOpacity="0.4" />
+          <text x={112} y={35+i*10} fill={c} fillOpacity={0.9-i*0.12} fontSize="4.5"
+            fontFamily="monospace">{txt}</text>
+          <rect x={150} y={31+i*10} width={28-i*5} height="4"
+            fill={i<2?'#66ffaa':'#ff6644'} fillOpacity="0.7" />
         </g>
       ))}
-      {/* Right server racks */}
-      {[144,160,176].map((x,i)=>(
-        <g key={`rr${i}`}>
-          <rect x={x} y={18} width="12" height="96" fill={c} fillOpacity="0.16"
-            stroke={c} strokeWidth="0.8" strokeOpacity="0.9" />
-          {Array.from({length:9},(_,j)=>(
-            <rect key={j} x={x+1.5} y={21+j*10} width="9" height="7"
-              fill="rgba(0,0,0,0.8)" stroke={c} strokeOpacity="0.5" strokeWidth="0.3" />
-          ))}
-          {Array.from({length:9},(_,j)=>(
-            <circle key={`led${j}`} cx={x+1.5} cy={23+j*10} r="0.8"
-              fill={c} filter={`url(#sg-${id})`}
-              style={{ animation:`roomBlink ${0.4+(i+j)*0.17}s ease-in-out infinite` }} />
-          ))}
+
+      {/* Central DATA GLOBE */}
+      <circle cx="100" cy="120" r="32" fill={c} fillOpacity="0.06" filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'1s':'2.8s'} ease-in-out infinite` }} />
+      {[32,24,16].map((r,i)=>(
+        <g key={i} style={{ transformBox:'fill-box', transformOrigin:'100px 120px',
+          animation:`${i%2===0?'roomSpin':'roomSpinRev'} ${working?4+i:10+i*3}s linear infinite` }}>
+          <ellipse cx="100" cy="120" rx={r} ry={r*0.4} fill="none"
+            stroke={c} strokeOpacity={0.45+i*0.12} strokeWidth="0.8" />
         </g>
       ))}
-      {/* Central data hub pillar */}
-      <rect x="78" y="24" width="44" height="66" fill="rgba(0,0,0,0.88)"
-        stroke={c} strokeWidth="1.4" strokeOpacity="1" />
-      <rect x="78" y="24" width="44" height="4" fill={c} fillOpacity="0.8" />
-      {[0,1,2,3,4,5,6,7,8].map(i=>(
-        <rect key={i} x={82} y={32+i*7} width={i%2===0?36:26} height="2.5"
-          fill={c} fillOpacity={0.9-i*0.06}
-          style={{ animation:`roomBlink ${0.5+i*0.22}s ease-in-out infinite` }} />
+      {/* Orbiting data points */}
+      {[[0,32],[72,24],[144,32],[216,24]].map((a,i)=>{
+        const rad=i*Math.PI*2/4
+        return (
+          <g key={i} style={{ transformBox:'fill-box', transformOrigin:'100px 120px',
+            animation:`roomSpin ${working?4:9}s linear infinite` }}>
+            <circle cx={100+Math.cos(rad)*28} cy={120+Math.sin(rad)*28*0.4} r="3"
+              fill={c} filter={`url(#gl-${id})`} />
+          </g>
+        )
+      })}
+      <circle cx="100" cy="120" r="8" fill={c} fillOpacity="0.4"
+        filter={`url(#gl-${id})`}
+        style={{ animation:`roomPulse ${working?'0.9s':'2.2s'} ease-in-out infinite` }} />
+      <circle cx="100" cy="120" r="3" fill="#fff" filter={`url(#gl-${id})`} />
+
+      {/* Daily report on desk */}
+      <rect x="28" y="156" width="52" height="34" fill="rgba(4,4,18,0.85)"
+        stroke={c} strokeWidth="0.8" strokeOpacity="0.8" />
+      <text x="54" y="164" fill={c} fillOpacity="0.8" fontSize="5" textAnchor="middle"
+        fontFamily="monospace" letterSpacing="0.5">DAILY SALES</text>
+      {[0,1,2,3].map(i=>(
+        <rect key={i} x={30} y={167+i*5} width={i%2===0?44:32} height="2.5"
+          fill={c} fillOpacity={0.5-i*0.08} />
       ))}
-      {/* Hub top glow */}
-      <circle cx="100" cy="56" r="18" fill={c} fillOpacity="0.08" filter={`url(#gl-${id})`}
-        style={{ animation:`roomPulse ${working?'1s':'2.5s'} ease-in-out infinite` }} />
-      {/* Top wall screens */}
-      <Scr x={62}  y={18} w={28} h={14} color={c} id={id} content="line" rate={1.0} />
-      <Scr x={110} y={18} w={28} h={14} color={c} id={id} content="bars" rate={1.3} />
-      {/* Connection lines */}
-      {[[34,66],[50,66],[150,66],[166,66]].map(([cx2,cy2],i)=>(
-        <line key={i} x1={cx2} y1={cy2} x2="100" y2="56"
-          stroke={c} strokeWidth="0.6" strokeOpacity="0.5" strokeDasharray="2 3"
-          style={{ animation:`roomDash ${1.3+i*0.3}s linear infinite` }} />
+
+      {/* Trend arrows */}
+      {[[120,162,'▲ +12%','#66ffaa'],[152,162,'▼ -3%','#ff6644'],[120,175,'▲ +8%','#66ffaa']].map(([ax,ay,txt,tc],i)=>(
+        <text key={i} x={ax} y={ay} fill={tc} fillOpacity="0.9" fontSize="5.5"
+          fontFamily="monospace">{txt}</text>
       ))}
-      {/* Floor displays */}
-      <Scr x={16} y={128} w={56} h={20} color={c} id={id} content="line" rate={1.2} />
-      <Scr x={80} y={128} w={40} h={20} color={c} id={id} content="dot" rate={1.4} />
-      <Scr x={128} y={128} w={56} h={20} color={c} id={id} content="bars" rate={1.1} />
+
+      {/* Forecast bar */}
+      <Scr x={118} y={180} w={68} h={14} color={c} id={id} content="bars" rate={1.3} />
+
       {/* Characters */}
-      <Char x={62} y={170} color={c} id={id} skin="#66e0ff" dur={0.7} />
-      <Char x={100} y={172} color={c} id={id} skin="#44ccee" dur={0.9} />
-      <Char x={138} y={170} color={c} id={id} skin="#66e0ff" dur={1.1} />
-      {/* Cooling pipes */}
-      <line x1="62" y1="20" x2="62" y2="12" stroke={c} strokeWidth="1.4" strokeOpacity="0.65" />
-      <line x1="138" y1="20" x2="138" y2="12" stroke={c} strokeWidth="1.4" strokeOpacity="0.65" />
-      <Lamp x={62} y={10} color={c} id={id} rate={1.5} />
-      <Lamp x={138} y={10} color={c} id={id} rate={1.2} />
+      <Char x={50} y={196} color={c} id={id} variant="data" dur={0.7} />
+      <Char x={86} y={198} color={c} id={id} variant="data" dur={0.9} />
+      <Char x={136} y={196} color={c} id={id} variant="analyst" dur={1.1} />
+
+      <Lamp x={14} y={78} color={c} id={id} rate={1.5} />
+      <Lamp x={186} y={78} color={c} id={id} rate={1.2} />
+      <Lamp x={100} y={8} color={c} id={id} rate={2} />
     </>
   )
 }
@@ -740,7 +939,7 @@ function AnalyticsRoom({ id, color, working }) {
 const VIZS = {
   'tinyagi':          NexusRoom,
   'market-analyst':   MarketRoom,
-  'notion-creator':   DocRoom,
+  'notion-creator':   NotionRoom,
   'finance-creator':  FinanceRoom,
   'business-creator': StrategyRoom,
   'copywriter':       ContentRoom,
@@ -748,7 +947,7 @@ const VIZS = {
   'analytics':        AnalyticsRoom,
 }
 
-// ─── AgentRoom — full cell, info overlay inside SVG ───────────────────────────
+// ─── AgentRoom export ─────────────────────────────────────────────────────────
 export default function AgentRoom({ id, agent }) {
   const cfg     = ROOM_CONFIG[id] || { color: '#888', label: id }
   const Viz     = VIZS[id] || NexusRoom
