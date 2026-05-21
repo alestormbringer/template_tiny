@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: '../ui',
-    emptyOutDir: true,
+    emptyOutDir: false,
+    assetsDir: 'assets',
   },
   server: {
     port: 5173,
