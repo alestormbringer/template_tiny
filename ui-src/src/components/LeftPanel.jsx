@@ -1,16 +1,4 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { AGENT_META } from '../simulation.js'
-
-const SHAPES = {
-  hexagon:  '⬡',
-  triangle: '▲',
-  circle:   '●',
-  diamond:  '◆',
-  pentagon: '⬠',
-  rhombus:  '◈',
-  star:     '★',
-  octagon:  '⬡',
-}
 
 function XPBar({ pct, color }) {
   return (
@@ -27,10 +15,8 @@ function XPBar({ pct, color }) {
 }
 
 function AgentRow({ id, agent }) {
-  const meta    = AGENT_META[id] || {}
   const color   = agent.color || '#888'
   const working = agent.status === 'working'
-  const icon    = SHAPES[meta.shape] || '◆'
 
   return (
     <motion.div
@@ -41,18 +27,13 @@ function AgentRow({ id, agent }) {
       whileHover={{ x: 4 }}
       transition={{ duration: 0.35 }}
     >
-      {/* Icon */}
+      {/* Status dot */}
       <motion.span
-        className="agent-icon"
-        style={{ color }}
-        animate={working
-          ? { scale: [1, 1.25, 1], opacity: [1, 0.7, 1] }
-          : { scale: 1 }
-        }
-        transition={{ repeat: Infinity, duration: 1.4 }}
-      >
-        {icon}
-      </motion.span>
+        className="agent-dot"
+        style={{ background: color, boxShadow: working ? `0 0 6px ${color}` : 'none' }}
+        animate={working ? { opacity: [1, 0.3, 1] } : { opacity: 0.5 }}
+        transition={{ repeat: Infinity, duration: 1.2 }}
+      />
 
       {/* Info */}
       <div className="agent-info">
@@ -61,19 +42,19 @@ function AgentRow({ id, agent }) {
             {agent.name || id}
           </span>
           <span className={`agent-badge ${working ? 'badge--active' : 'badge--idle'}`}>
-            {working ? 'WORK' : 'IDLE'}
+            {working ? 'BUSY' : 'IDLE'}
           </span>
         </div>
         <div className="agent-task">
           {working && agent.current_task
-            ? <span className="task-text">{agent.current_task.slice(0, 38)}{agent.current_task.length > 38 ? '…' : ''}</span>
-            : <span className="task-idle">Lvl {agent.level} · {agent.tasks_done} tasks</span>
+            ? <span className="task-text">{agent.current_task.slice(0, 36)}{agent.current_task.length > 36 ? '…' : ''}</span>
+            : <span className="task-idle">Lv{agent.level} · {agent.tasks_done} tasks</span>
           }
         </div>
         <XPBar pct={agent.xp_pct || 0} color={color} />
       </div>
 
-      {/* Queue indicator */}
+      {/* Queue badge */}
       {(agent.queue_size || 0) > 0 && (
         <motion.span
           className="queue-badge"
@@ -89,11 +70,13 @@ function AgentRow({ id, agent }) {
 
 export default function LeftPanel({ data }) {
   const agentEntries = Object.entries(data?.agents || {})
+  const working      = agentEntries.filter(([, a]) => a.status === 'working').length
+  const totalXP      = data?.total_xp || 0
 
   return (
     <aside className="left-panel">
       <div className="panel-header">
-        <span className="panel-title">COLONY UNITS</span>
+        <span className="panel-title">AGENTS</span>
         <span className="panel-count">{agentEntries.length}</span>
       </div>
 
@@ -105,14 +88,18 @@ export default function LeftPanel({ data }) {
         </AnimatePresence>
       </div>
 
-      <div className="panel-footer">
-        <motion.button
-          className="recruit-btn"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          + RECRUIT UNIT
-        </motion.button>
+      {/* Bottom stats */}
+      <div className="panel-footer lp-stats">
+        <div className="lp-stat">
+          <span className="lp-stat-label">ACTIVE</span>
+          <span className="lp-stat-val" style={{ color: working > 0 ? '#ff9944' : '#5858a0' }}>
+            {working}/{agentEntries.length}
+          </span>
+        </div>
+        <div className="lp-stat">
+          <span className="lp-stat-label">TOTAL XP</span>
+          <span className="lp-stat-val" style={{ color: '#aa44ff' }}>{totalXP}</span>
+        </div>
       </div>
     </aside>
   )

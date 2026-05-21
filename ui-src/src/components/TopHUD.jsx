@@ -33,11 +33,13 @@ export default function TopHUD({ data, status }) {
     return () => clearInterval(id)
   }, [])
 
-  const agents     = Object.values(data?.agents || {})
-  const working    = agents.filter(a => a.status === 'working').length
-  const totalXP    = data?.total_xp    || 0
-  const tasksDone  = data?.tasks_done  || 0
-  const totalQ     = agents.reduce((s, a) => s + (a.queue_size || 0), 0)
+  const agents    = Object.values(data?.agents || {})
+  const working   = agents.filter(a => a.status === 'working').length
+  const tasksDone = data?.tasks_done  || 0
+  const pipeline  = data?.pipeline    || {}
+  const published = pipeline.done     || 0
+  const active    = (pipeline.total   || 0) - published
+  const totalQ    = agents.reduce((s, a) => s + (a.queue_size || 0), 0)
 
   return (
     <header className="top-hud">
@@ -49,16 +51,17 @@ export default function TopHUD({ data, status }) {
       >
         <span className="logo-hex">⬡</span>
         <span className="logo-text">TINYAGI</span>
-        <span className="logo-sub">// COLONY</span>
+        <span className="logo-sub">FACTORY</span>
       </motion.div>
 
       {/* Metrics */}
       <div className="hud-metrics">
-        <Metric label="AGENTS"      value={`${agents.length} ONLINE`}  color="#00ff88" />
-        <Metric label="ACTIVE"      value={`${working} WORKING`}       color={working > 0 ? '#ff6600' : '#5858a0'} blink={working > 0} />
-        <Metric label="TASKS DONE"  value={tasksDone}         color="#aa44ff" />
-        <Metric label="QUEUE"       value={`${totalQ} PENDING`}        color="#ffee00" />
-        <Metric label="COLONY XP"   value={totalXP}           color="#ff44aa" />
+        <Metric label="AGENTS"     value={`${agents.length} ONLINE`}           color="#00ff88" />
+        <Metric label="ACTIVE"     value={`${working} WORKING`}                color={working > 0 ? '#ff9944' : '#5858a0'} blink={working > 0} />
+        <Metric label="TASKS DONE" value={tasksDone}                           color="#aa44ff" />
+        <Metric label="PIPELINE"   value={`${active} ACTIVE`}                  color="#ffdd44" />
+        <Metric label="PUBLISHED"  value={`${published} DONE`}                 color="#44ffaa" />
+        <Metric label="QUEUE"      value={`${totalQ} PENDING`}                 color="#ff44aa" />
       </div>
 
       {/* Status + time */}

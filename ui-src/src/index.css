@@ -406,7 +406,7 @@ html, body, #root {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 30%, transparent 62%, rgba(0,0,0,0.78) 100%);
+    linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.72) 100%);
   pointer-events: none;
 }
 
@@ -477,9 +477,9 @@ html, body, #root {
 /* ─── Animated SVG character ─────────────────────────────────────────────── */
 .room-char {
   position: absolute;
-  width: 13%;
-  max-width: 56px;
-  min-width: 28px;
+  width: 16%;
+  max-width: 64px;
+  min-width: 32px;
   z-index: 4;
   /* smooth movement between idle and busy positions */
   transition: bottom 0.75s cubic-bezier(0.4,0,0.2,1),
@@ -550,6 +550,92 @@ html, body, #root {
   border-radius: 1px;
   opacity: 0.85;
   transition: width 0.6s ease;
+}
+
+/* ─── Left panel stats footer ────────────────────────────────────────────── */
+.lp-stats {
+  display: flex;
+  gap: 0;
+  padding: 8px 12px;
+}
+.lp-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lp-stat-label {
+  font-family: var(--font-head);
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+.lp-stat-val {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* ─── Agent dot (replaces shape icon) ────────────────────────────────────── */
+.agent-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ─── Pipeline cards ──────────────────────────────────────────────────────── */
+.pipe-card {
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid rgba(var(--vc, 128,128,200), 0.2);
+  border-left: 3px solid var(--vc, #888);
+}
+.pipe-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pipe-icon { font-size: 11px; flex-shrink: 0; }
+.pipe-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+.pipe-count {
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  font-family: var(--font-head);
+}
+.pipe-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pipe-stage {
+  font-family: var(--font-head);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.pipe-stage--done {
+  color: #44ffaa;
+  border-color: rgba(68,255,170,0.3);
+  background: rgba(68,255,170,0.06);
+}
+.pipe-stage--empty {
+  color: var(--text-dim);
+  font-size: 7px;
+  border: none;
+  padding: 0;
+  letter-spacing: 0.5px;
 }
 
 /* ─── Missions ────────────────────────────────────────────────────────────── */

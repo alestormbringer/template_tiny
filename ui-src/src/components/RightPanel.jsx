@@ -1,39 +1,41 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 
-const MISSIONS = [
-  { id: 1, label: 'First Revenue',   icon: '💎', target: 500,  metric: 'revenue',    unit: '€' },
-  { id: 2, label: 'Publish 5 Items', icon: '📦', target: 5,    metric: 'products',   unit: '' },
-  { id: 3, label: 'Complete 20 Tasks',icon: '⚡', target: 20,  metric: 'tasks_done', unit: '' },
-  { id: 4, label: 'Full Crew',       icon: '👾', target: 8,    metric: 'agents',     unit: '' },
+const VERTICALS = [
+  { id: 'notion',   label: 'Notion',   color: '#88ddaa', icon: '📋' },
+  { id: 'finance',  label: 'Finance',  color: '#ffdd77', icon: '💰' },
+  { id: 'business', label: 'Business', color: '#cc88ff', icon: '📊' },
 ]
 
-function MissionCard({ mission, progress, total }) {
-  const pct = Math.min(100, Math.round((progress / total) * 100))
-  const done = pct >= 100
+const STAGES = ['RESEARCH', 'CREATION', 'COPYWRITING', 'PUBLISHING', 'ANALYTICS', 'DONE']
+
+function PipelineCard({ v, byStage, byVertical }) {
+  const total = byVertical[v.id] || 0
+  const done  = byStage?.DONE    || 0
 
   return (
-    <motion.div
-      className={`mission-card ${done ? 'mission-done' : ''}`}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="mission-row">
-        <span className="mission-icon">{mission.icon}</span>
-        <span className="mission-label">{mission.label}</span>
-        {done && <span className="mission-complete">✓</span>}
+    <div className="pipe-card" style={{ '--vc': v.color }}>
+      <div className="pipe-card-header">
+        <span className="pipe-icon">{v.icon}</span>
+        <span className="pipe-label" style={{ color: v.color }}>{v.label}</span>
+        <span className="pipe-count">{total} products</span>
       </div>
-      <div className="mission-progress">
-        <motion.div
-          className="mission-bar"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-        />
+      <div className="pipe-stages">
+        {STAGES.map(s => {
+          const n = byStage?.[s] || 0
+          return n > 0 ? (
+            <span
+              key={s}
+              className={`pipe-stage ${s === 'DONE' ? 'pipe-stage--done' : ''}`}
+              style={s !== 'DONE' ? { borderColor: v.color, color: v.color } : {}}
+            >
+              {s.slice(0, 3)} {n}
+            </span>
+          ) : null
+        })}
+        {total === 0 && <span className="pipe-stage pipe-stage--empty">no products yet</span>}
       </div>
-      <span className="mission-pct">{pct}%</span>
-    </motion.div>
+    </div>
   )
 }
 
@@ -54,11 +56,13 @@ function LogEntry({ entry, color }) {
 
 export default function RightPanel({ data }) {
   const [logs, setLogs] = useState([])
-  const agents    = data?.agents || {}
-  const tasksDone = data?.tasks_done || 0
-  const agentCount = Object.keys(agents).length
+  const agents   = data?.agents   || {}
+  const pipeline = data?.pipeline || {}
+  const byStage  = pipeline.by_stage    || {}
+  const byVert   = pipeline.by_vertical || {}
+  const totalDone = pipeline.done || 0
+  const totalProd = pipeline.total || 0
 
-  // Collect recent logs from all agents
   useEffect(() => {
     const allLogs = []
     Object.entries(agents).forEach(([id, a]) => {
@@ -67,32 +71,35 @@ export default function RightPanel({ data }) {
         allLogs.push({ id: `${id}-${entry}`, text: entry, color, name: a.name || id })
       })
     })
-    // Sort by timestamp if possible (entries start with [HH:MM:SS])
     allLogs.sort((a, b) => b.text.localeCompare(a.text))
-    setLogs(allLogs.slice(0, 18))
+    setLogs(allLogs.slice(0, 16))
   }, [agents])
 
   return (
     <aside className="right-panel">
 
-      {/* Missions */}
+      {/* Pipeline */}
       <div className="panel-header">
-        <span className="panel-title">MISSIONS</span>
+        <span className="panel-title">PIPELINE</span>
+        <span className="panel-count" style={{ color: '#44ffaa' }}>{totalDone}/{totalProd}</span>
       </div>
+
       <div className="missions-list">
-        {MISSIONS.map(m => {
-          let progress = 0
-          if (m.metric === 'tasks_done') progress = tasksDone
-          if (m.metric === 'agents')     progress = agentCount
-          return <MissionCard key={m.id} mission={m} progress={progress} total={m.target} />
-        })}
+        {VERTICALS.map(v => (
+          <PipelineCard
+            key={v.id}
+            v={v}
+            byStage={byStage}
+            byVertical={byVert}
+          />
+        ))}
       </div>
 
       <div className="panel-divider" />
 
       {/* Event log */}
       <div className="panel-header">
-        <span className="panel-title">COLONY LOG</span>
+        <span className="panel-title">LIVE LOG</span>
         <motion.span
           className="log-live"
           animate={{ opacity: [1, 0.3, 1] }}
@@ -101,6 +108,7 @@ export default function RightPanel({ data }) {
           ● LIVE
         </motion.span>
       </div>
+
       <div className="log-feed">
         <AnimatePresence initial={false}>
           {logs.map(l => (
@@ -113,7 +121,7 @@ export default function RightPanel({ data }) {
               animate={{ opacity: [0.3, 0.8, 0.3] }}
               transition={{ repeat: Infinity, duration: 2.5 }}
             >
-              Awaiting colony activity…
+              Awaiting factory activity…
             </motion.span>
           </div>
         )}
