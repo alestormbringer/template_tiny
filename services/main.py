@@ -414,7 +414,8 @@ async def gumroad_create_product(title: str, description: str, price_cents: int,
                 "https://api.gumroad.com/v2/products",
                 headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
                 data={"name": title, "description": description,
-                      "price": price_cents, "tags[]": tags[:5]},
+                      "price": price_cents, "tags[]": tags[:5],
+                      "published": "true"},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as r:
                 return await r.json()

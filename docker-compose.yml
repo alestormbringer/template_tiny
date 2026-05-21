@@ -21,7 +21,7 @@ services:
     volumes:
       - agents-data:/root/workspace
     ports:
-      - "${TINYAGI_PORT:-8090}:3778"
+      - "${TINYAGI_PORT:-3778}:3778"
     networks:
       - tinyagi-net
     depends_on:
