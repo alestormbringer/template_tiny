@@ -320,7 +320,7 @@ def recover_copy(raw: str) -> dict:
     """Best-effort field extraction when the LLM didn't return valid JSON."""
     # Title: JSON-style first, then labeled text (SEO TITLE: / TITLE: / 1) ...)
     title = ""
-    m = re.search(r'"title"\s*:\s*"([^"]{3,80})"', raw)
+    m = re.search(r'"(?:title|seo_title|product_title|final_title|name)"\s*:\s*"([^"]{3,80})"', raw)
     if m:
         title = m.group(1)
     if not title:
@@ -537,25 +537,32 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
         if aid == "publisher":
             product = pipeline.get_product(product_id)
             if product:
-                # Primary: publisher's own JSON output (name/description/price/tags)
                 pub = result_json if not result_json.get("parse_error") else {}
-                title       = (pub.get("name") or "").strip()
-                description = (pub.get("description") or "").strip()
-                price_cents = pub.get("price") or 0
-                tags        = pub.get("tags") or []
 
-                # Fallback: copy stage data
+                # LLM may use name/final_title/title interchangeably
+                title = (pub.get("name") or pub.get("final_title") or pub.get("title") or "").strip()
+                description = (pub.get("description") or "").strip()
+                price_raw = pub.get("price") or pub.get("final_price") or 0
+                # price_raw < 200 → dollars → convert to cents; else already cents
+                price_cents = int(float(price_raw) * 100) if 0 < float(price_raw) < 200 else int(price_raw)
+                tags = pub.get("tags") or []
+
+                # Always supplement from copy stage (unconditional, not just when title missing)
+                raw_copy = product.get("copy") or {}
+                if raw_copy.get("parse_error") or raw_copy.get("_recovered"):
+                    c = recover_copy(raw_copy.get("raw", str(raw_copy)))
+                    agent_log(aid, f"🔧 Copy recovered: '{c['title']}'")
+                else:
+                    c = raw_copy
+                copy_title = (c.get("title") or c.get("seo_title") or c.get("product_title") or c.get("name") or "").strip()
                 if not title:
-                    raw_copy = product.get("copy") or {}
-                    if raw_copy.get("parse_error") or raw_copy.get("_recovered"):
-                        c = recover_copy(raw_copy.get("raw", str(raw_copy)))
-                        agent_log(aid, f"🔧 Copy recovered: '{c['title']}'")
-                    else:
-                        c = raw_copy
-                    title       = c.get("title", "")
-                    description = description or c.get("description", "")
-                    price_cents = price_cents or int(float(c.get("price", 12)) * 100)
-                    tags        = tags or c.get("tags", [])
+                    title = copy_title
+                if not description:
+                    description = c.get("description") or c.get("product_description") or ""
+                if not price_cents:
+                    price_cents = int(float(c.get("price", 12)) * 100)
+                if not tags:
+                    tags = c.get("tags") or c.get("keywords") or []
 
                 if title and title != "Digital Template":
                     resp = await gumroad_create_product(
