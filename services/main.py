@@ -277,12 +277,18 @@ def agent_log(aid: str, msg: str):
 # ── LLM ──────────────────────────────────────────────────────────────────────
 async def llm(system: str, user: str, max_tokens: int = 1000) -> str:
     try:
-        resp = await client.chat.completions.create(
-            model=OLLAMA_MODEL,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_tokens=max_tokens, temperature=0.7,
+        resp = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=OLLAMA_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                max_tokens=max_tokens, temperature=0.7,
+            ),
+            timeout=90.0,
         )
         return resp.choices[0].message.content.strip()
+    except asyncio.TimeoutError:
+        log.error("LLM timeout after 90s")
+        return "[LLM_TIMEOUT]"
     except Exception as e:
         log.error(f"LLM error: {e}")
         return f"[LLM_ERROR: {e}]"
@@ -650,17 +656,18 @@ async def execute_task(aid: str, task: str):
 # ── Orchestrator strategic decision ──────────────────────────────────────────
 async def orchestrator_decide(actions: list) -> dict:
     """Ask the LLM orchestrator to make strategic pipeline decisions."""
+    stats = pipeline.stats()
     state = {
-        "stats": pipeline.stats(),
+        "total": stats["total"], "done": stats["done"],
+        "by_stage": stats["by_stage"], "by_vertical": stats["by_vertical"],
         "pending": [
             {"id": a["product"]["id"], "vertical": a["product"]["vertical"], "stage": a["product"]["stage"]}
             for a in actions
         ],
-        "recent": pipeline.recent(3),
     }
     raw = await llm(
         AGENTS["tinyagi"]["system"],
-        f"Current pipeline state:\n{json.dumps(state, indent=2)}\n\nMake your strategic decision.",
+        f"Pipeline state:\n{json.dumps(state)}\n\nDecide.",
         max_tokens=200,
     )
     decision = extract_json(raw)
