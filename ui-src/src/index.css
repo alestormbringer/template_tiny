@@ -487,19 +487,21 @@ html, body, #root {
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.75));
   pointer-events: none;
 }
+/* idle: quasi fermo, respiro leggero ogni 4s */
 .room-char--idle {
-  animation: charIdleBob 1.4s ease-in-out infinite alternate;
+  animation: charIdle 4s ease-in-out infinite;
 }
+/* busy: cammina — oscillazione laterale + su/giù */
 .room-char--busy {
-  animation: charBusyBob 0.7s ease-in-out infinite alternate;
+  animation: charWalk 0.5s ease-in-out infinite alternate;
 }
-@keyframes charIdleBob {
-  from { transform: translateY(0px) rotate(-1deg); }
-  to   { transform: translateY(-3px) rotate(1deg); }
+@keyframes charIdle {
+  0%,100% { transform: translateY(0px) rotate(0deg); }
+  50%      { transform: translateY(-1px) rotate(0.5deg); }
 }
-@keyframes charBusyBob {
-  from { transform: translateY(0px) rotate(-2deg) scale(1); }
-  to   { transform: translateY(-5px) rotate(2deg) scale(1.04); }
+@keyframes charWalk {
+  from { transform: translateY(0px) translateX(-2px) rotate(-3deg); }
+  to   { transform: translateY(-4px) translateX(2px)  rotate(3deg); }
 }
 
 /* ─── Room footer overlay ─────────────────────────────────────────────────── */

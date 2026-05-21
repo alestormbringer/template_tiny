@@ -19,26 +19,30 @@ const CHAR_POS = {
   busy: { bottom: '40%', left: '22%' },
 }
 
+// Steampunk theme: all chars wear dark coats, per-agent accent color for hat/tie
 const CHAR_THEMES = {
-  'tinyagi':          { hair: '#44ddff', shirt: '#1a3366', pant: '#0d1a33' },
-  'market-analyst':   { hair: '#ff9933', shirt: '#cc5522', pant: '#1a1a33' },
-  'notion-creator':   { hair: '#dd44ff', shirt: '#33aa77', pant: '#112233' },
-  'finance-creator':  { hair: '#887755', shirt: '#3355aa', pant: '#111133' },
-  'business-creator': { hair: '#885533', shirt: '#884499', pant: '#221133' },
-  'copywriter':       { hair: '#ff44aa', shirt: '#bb2277', pant: '#330033' },
-  'publisher':        { hair: '#ff4444', shirt: '#aa2222', pant: '#330011' },
-  'analytics':        { hair: '#44aaff', shirt: '#115577', pant: '#111133' },
+  'tinyagi':          { accent: '#44ddff', hat: '#1a2a3a' },
+  'market-analyst':   { accent: '#ffaa55', hat: '#2a1a0a' },
+  'notion-creator':   { accent: '#88ddaa', hat: '#0a2a1a' },
+  'finance-creator':  { accent: '#ffdd55', hat: '#2a2a0a' },
+  'business-creator': { accent: '#cc88ff', hat: '#1a0a2a' },
+  'copywriter':       { accent: '#ff88cc', hat: '#2a0a1a' },
+  'publisher':        { accent: '#ff8866', hat: '#2a0a0a' },
+  'analytics':        { accent: '#55ffdd', hat: '#0a2a2a' },
 }
 
 function hexToRgb(hex) {
   return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`
 }
 
-// ─── Animated pixel-art character ────────────────────────────────────────────
-// SVG viewBox 0 0 28 48  (28px wide, 48px tall in SVG units)
+// ─── Steampunk pixel-art character ───────────────────────────────────────────
 function RoomChar({ id, working }) {
   const t    = CHAR_THEMES[id] || CHAR_THEMES['tinyagi']
-  const skin = '#f5c5a3'
+  const skin = '#d4956a'
+  const coat = '#2a1f14'    // dark brown coat
+  const pant = '#1a1510'    // near-black trousers
+  const boot = '#0d0a07'    // dark boots
+  const brass= '#c87f2a'    // brass belt buckle
   const pos  = working ? CHAR_POS.busy : CHAR_POS.idle
 
   return (
@@ -46,75 +50,97 @@ function RoomChar({ id, working }) {
       className={`room-char ${working ? 'room-char--busy' : 'room-char--idle'}`}
       style={{ bottom: pos.bottom, left: pos.left }}
     >
-      <svg
-        viewBox="0 0 28 50"
-        width="100%"
-        height="100%"
-        style={{ display: 'block', imageRendering: 'pixelated' }}
-      >
-        {/* ── Shadow ── */}
-        <ellipse cx="14" cy="48" rx="8" ry="2" fill="rgba(0,0,0,0.55)" />
+      <svg viewBox="0 0 28 52" width="100%" height="100%"
+        style={{ display: 'block', imageRendering: 'pixelated' }}>
 
-        {/* ── Legs ── */}
-        <rect x="7"  y="34" width="5" height="12" fill={t.pant} />
-        <rect x="16" y="34" width="5" height="12" fill={t.pant} />
+        {/* Shadow */}
+        <ellipse cx="14" cy="50" rx="7" ry="2" fill="rgba(0,0,0,0.5)" />
 
-        {/* ── Shoes ── */}
-        <rect x="5"  y="43" width="7"  height="3" fill="#111120" />
-        <rect x="16" y="43" width="7"  height="3" fill="#111120" />
+        {/* ── Boots ── */}
+        <rect x="6"  y="41" width="6" height="8" fill={boot} />
+        <rect x="16" y="41" width="6" height="8" fill={boot} />
+        {/* boot buckle */}
+        <rect x="7"  y="44" width="4" height="2" fill={brass} fillOpacity="0.7" />
+        <rect x="17" y="44" width="4" height="2" fill={brass} fillOpacity="0.7" />
 
-        {/* ── Body / shirt ── */}
-        <rect x="5" y="20" width="18" height="15" fill={t.shirt} />
+        {/* ── Trousers ── */}
+        <rect x="7"  y="31" width="5" height="12" fill={pant} />
+        <rect x="16" y="31" width="5" height="12" fill={pant} />
 
-        {/* ── Collar ── */}
-        <rect x="10" y="20" width="8" height="3" fill={t.hair} fillOpacity="0.4" />
+        {/* ── Coat body ── */}
+        <rect x="4" y="18" width="20" height="15" fill={coat} />
+        {/* coat lapels */}
+        <polygon points="14,18 10,22 14,24" fill="#3a2a1a" />
+        <polygon points="14,18 18,22 14,24" fill="#3a2a1a" />
+        {/* brass buttons */}
+        <circle cx="14" cy="26" r="1.2" fill={brass} />
+        <circle cx="14" cy="30" r="1.2" fill={brass} />
+        {/* belt */}
+        <rect x="4" y="31" width="20" height="2" fill="#1a1208" />
+        <rect x="11" y="31" width="6"  height="2" fill={brass} />
 
-        {/* ── Arm left (idle: at side / busy: raised pointing) ── */}
-        <rect
-          x="2" y={working ? 14 : 22}
-          width="4" height={working ? 10 : 12}
-          fill={t.shirt}
-          style={{ transition: 'y 0.5s ease, height 0.5s ease' }}
-        />
-        {/* Pointing finger (visible only when busy) */}
-        {working && (
-          <rect x="0" y="14" width="3" height="2" fill={skin} />
-        )}
+        {/* ── Arms ── */}
+        {/* left arm — raised/pointing when busy, at side when idle */}
+        <rect x="1" y={working ? 16 : 22} width="4"
+          height={working ? 10 : 14} fill={coat} rx="1" />
+        {/* right arm */}
+        <rect x="23" y="22" width="4" height="14" fill={coat} rx="1" />
 
-        {/* ── Arm right ── */}
-        <rect x="22" y="22" width="4" height="12" fill={t.shirt} />
+        {/* ── Gloved hands ── */}
+        <rect x="0"  cy={working ? 25 : 34}
+          y={working ? 25 : 34} width="5" height="4" fill="#1a1208" rx="1" />
+        <rect x="23" y="34" width="5" height="4" fill="#1a1208" rx="1" />
+        {/* brass cuff */}
+        <rect x="1"  y={working ? 24 : 33} width="4" height="2" fill={brass} fillOpacity="0.8" />
+        <rect x="23" y="33" width="4" height="2" fill={brass} fillOpacity="0.8" />
 
-        {/* ── Hands ── */}
-        <circle cx="4"  cy={working ? 25 : 35} r="3" fill={skin}
-          style={{ transition: 'cy 0.5s ease' }} />
-        <circle cx="24" cy="35" r="3" fill={skin} />
+        {/* ── Neck / cravat ── */}
+        <rect x="11" y="16" width="6" height="4" fill={skin} />
+        <rect x="11" y="17" width="6" height="3" fill={t.accent} fillOpacity="0.6" />
 
         {/* ── Head ── */}
-        <rect x="7" y="4" width="14" height="17" fill={skin} />
+        <rect x="7" y="5" width="14" height="14" fill={skin} />
+        {/* sideburns */}
+        <rect x="6"  y="9" width="2" height="6" fill="#5a3a1a" fillOpacity="0.6" />
+        <rect x="20" y="9" width="2" height="6" fill="#5a3a1a" fillOpacity="0.6" />
 
-        {/* ── Hair ── */}
-        <rect x="6"  y="2"  width="16" height="5"  fill={t.hair} />
-        <rect x="5"  y="6"  width="3"  height="7"  fill={t.hair} fillOpacity="0.7" />
-        <rect x="20" y="6"  width="3"  height="6"  fill={t.hair} fillOpacity="0.7" />
+        {/* ── Goggles on forehead ── */}
+        <rect x="7" y="5" width="14" height="4" fill={t.hat} />
+        <circle cx="10" cy="7" r="2.5" fill="#0a0808" stroke={brass} strokeWidth="0.8" />
+        <circle cx="18" cy="7" r="2.5" fill="#0a0808" stroke={brass} strokeWidth="0.8" />
+        <circle cx="10" cy="7" r="1.2" fill={t.accent} fillOpacity="0.5" />
+        <circle cx="18" cy="7" r="1.2" fill={t.accent} fillOpacity="0.5" />
+        {/* goggle strap */}
+        <rect x="12" y="6" width="4" height="2" fill={brass} fillOpacity="0.6" />
+
+        {/* ── Top hat ── */}
+        <rect x="8"  y="0"  width="12" height="6" fill={t.hat} />
+        <rect x="5"  y="5"  width="18" height="2" fill={t.hat} />
+        {/* hat band */}
+        <rect x="8"  y="4"  width="12" height="2" fill={t.accent} fillOpacity="0.5" />
 
         {/* ── Eyes ── */}
-        <rect x="9"  y="12" width="4" height="4" fill="#1a0e08" />
-        <rect x="16" y="12" width="4" height="4" fill="#1a0e08" />
-        {/* Eye shine */}
-        <rect x="9"  y="12" width="1.5" height="1.5" fill="white" fillOpacity="0.8" />
-        <rect x="16" y="12" width="1.5" height="1.5" fill="white" fillOpacity="0.8" />
+        <rect x="9"  y="10" width="3" height="3" fill="#1a0e08" />
+        <rect x="16" y="10" width="3" height="3" fill="#1a0e08" />
+        <rect x="9"  y="10" width="1" height="1" fill="white" fillOpacity="0.9" />
+        <rect x="16" y="10" width="1" height="1" fill="white" fillOpacity="0.9" />
 
-        {/* ── Mouth ── */}
-        <rect x="11" y="17" width="6" height="2" fill="#cc8866" fillOpacity="0.55" />
+        {/* ── Moustache ── */}
+        <rect x="10" y="15" width="8" height="2" fill="#3a2010" />
+        <rect x="11" y="14" width="3" height="1" fill="#3a2010" />
+        <rect x="14" y="14" width="3" height="1" fill="#3a2010" />
 
-        {/* ── Busy: speech bubble ── */}
+        {/* Busy: gear/tool in hand */}
         {working && (
           <g>
-            <rect x="18" y="0" width="10" height="8" rx="2"
-              fill="white" fillOpacity="0.9" />
-            <rect x="20" y="2" width="6" height="1.5" fill="#444" fillOpacity="0.6" />
-            <rect x="20" y="4.5" width="4" height="1.5" fill="#444" fillOpacity="0.4" />
-            <polygon points="20,8 18,11 22,8" fill="white" fillOpacity="0.9" />
+            <circle cx="3" cy="24" r="4" fill="none" stroke={brass} strokeWidth="1.2" />
+            <circle cx="3" cy="24" r="1.5" fill={brass} fillOpacity="0.7" />
+            {[0,60,120,180,240,300].map(deg => {
+              const r = deg * Math.PI / 180
+              const x = 3 + Math.cos(r) * 4.5
+              const y = 24 + Math.sin(r) * 4.5
+              return <rect key={deg} x={x-0.8} y={y-0.8} width="1.6" height="1.6" fill={brass} />
+            })}
           </g>
         )}
       </svg>
