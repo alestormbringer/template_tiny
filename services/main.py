@@ -655,9 +655,9 @@ async def build_stage_task(product: dict):
         search_hint = await searxng_search(f"best selling {vertical} templates Gumroad 2024")
         # Build catalog of already-created product names to avoid duplicates
         existing = [
-            p.get("research", {}).get("product_name", "")
+            (p.get("research") or {}).get("product_name", "")
             for p in pipeline.products
-            if p.get("vertical") == vertical and p.get("research", {}).get("product_name")
+            if p.get("vertical") == vertical and (p.get("research") or {}).get("product_name")
         ]
         existing_str = ", ".join(existing[-10:]) if existing else "none yet"
         prompt = (
