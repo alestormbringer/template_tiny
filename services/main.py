@@ -545,6 +545,24 @@ async def gumroad_upload_file(product_id: str, file_bytes: bytes, filename: str,
         return {"error": str(e)}
 
 
+async def gumroad_upload_cover_image(product_id: str, img_bytes: bytes) -> dict:
+    if not GUMROAD_KEY:
+        return {"error": "No Gumroad key"}
+    try:
+        async with aiohttp.ClientSession() as sess:
+            form = aiohttp.FormData()
+            form.add_field("preview", img_bytes, filename="cover.jpg", content_type="image/jpeg")
+            async with sess.put(
+                f"https://api.gumroad.com/v2/products/{product_id}",
+                headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
+                data=form,
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def gumroad_update_product(product_id: str, fields: dict) -> dict:
     if not GUMROAD_KEY:
         return {"error": "No Gumroad key"}
@@ -855,12 +873,13 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                         except Exception as pdf_err:
                             agent_log(aid, f"⚠ PDF error: {pdf_err}")
 
-                        # 4. Set cover image via preview_url
+                        # 4. Upload cover image as file (required by Gumroad to publish)
                         if img_bytes:
-                            safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", img_prompt)[:200].replace(" ", "+")
-                            preview_url = f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
-                            await gumroad_update_product(gumroad_id, {"preview_url": preview_url})
-                            agent_log(aid, "🖼 Cover image set")
+                            cover_resp = await gumroad_upload_cover_image(gumroad_id, img_bytes)
+                            if cover_resp.get("success"):
+                                agent_log(aid, "🖼 Cover image uploaded")
+                            else:
+                                agent_log(aid, f"⚠ Cover image upload: {cover_resp.get('message', 'error')}")
                     else:
                         err = resp.get("message") or resp.get("error", "unknown")
                         result_json["gumroad_error"] = err
