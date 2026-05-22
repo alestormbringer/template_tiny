@@ -33,6 +33,10 @@ GUMROAD_KEY  = os.getenv("GUMROAD_API_KEY",  "")
 NOTION_KEY   = os.getenv("NOTION_API_KEY",   "")
 SEARXNG_URL  = os.getenv("SEARXNG_BASE_URL", "http://searxng:8080")
 WORKSPACE    = Path("/root/workspace")
+ETSY_API_KEY      = os.getenv("ETSY_API_KEY",      "")
+ETSY_SHOP_ID      = os.getenv("ETSY_SHOP_ID",      "")
+ETSY_ACCESS_TOKEN = os.getenv("ETSY_ACCESS_TOKEN",  "")
+ETSY_REFRESH_TOKEN= os.getenv("ETSY_REFRESH_TOKEN", "")
 
 client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=OLLAMA_BASE)
 
@@ -582,6 +586,119 @@ async def gumroad_update_product(product_id: str, fields: dict) -> dict:
         return {"error": str(e)}
 
 
+# ── Etsy API ──────────────────────────────────────────────────────────────────
+import time as _time
+_etsy_access_token: str = ETSY_ACCESS_TOKEN
+_etsy_token_expiry: float = 0.0
+
+
+async def etsy_ensure_token() -> str:
+    global _etsy_access_token, _etsy_token_expiry
+    if _etsy_access_token and _time.time() < _etsy_token_expiry - 60:
+        return _etsy_access_token
+    if not ETSY_REFRESH_TOKEN:
+        return _etsy_access_token
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.post(
+                "https://api.etsy.com/v3/public/oauth/token",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={"grant_type": "refresh_token",
+                      "client_id": ETSY_API_KEY,
+                      "refresh_token": ETSY_REFRESH_TOKEN},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                data = await r.json()
+                _etsy_access_token = data.get("access_token", _etsy_access_token)
+                _etsy_token_expiry = _time.time() + data.get("expires_in", 3600)
+                log.info("Etsy token refreshed")
+    except Exception as e:
+        log.warning(f"Etsy token refresh failed: {e}")
+    return _etsy_access_token
+
+
+async def etsy_create_listing(title: str, description: str, price_usd: float, tags: list) -> dict:
+    if not (ETSY_API_KEY and ETSY_SHOP_ID):
+        return {"error": "Etsy not configured"}
+    token = await etsy_ensure_token()
+    if not token:
+        return {"error": "No Etsy access token"}
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.post(
+                f"https://openapi.etsy.com/v3/application/shops/{ETSY_SHOP_ID}/listings",
+                headers={"x-api-key": ETSY_API_KEY,
+                         "Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"},
+                json={"title": title[:140], "description": description[:70000],
+                      "price": round(float(price_usd), 2), "quantity": 999,
+                      "who_made": "i_did", "when_made": "2020_2025",
+                      "taxonomy_id": 2078, "type": "digital", "state": "draft",
+                      "tags": [t[:20] for t in tags[:13]]},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def etsy_upload_digital_file(listing_id: str, file_bytes: bytes, filename: str) -> dict:
+    if not (ETSY_API_KEY and ETSY_SHOP_ID):
+        return {"error": "Etsy not configured"}
+    token = await etsy_ensure_token()
+    try:
+        async with aiohttp.ClientSession() as sess:
+            form = aiohttp.FormData()
+            form.add_field("file", file_bytes, filename=filename, content_type="application/pdf")
+            async with sess.post(
+                f"https://openapi.etsy.com/v3/application/shops/{ETSY_SHOP_ID}/listings/{listing_id}/files",
+                headers={"x-api-key": ETSY_API_KEY, "Authorization": f"Bearer {token}"},
+                data=form,
+                timeout=aiohttp.ClientTimeout(total=120),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def etsy_upload_image(listing_id: str, img_bytes: bytes) -> dict:
+    if not (ETSY_API_KEY and ETSY_SHOP_ID):
+        return {"error": "Etsy not configured"}
+    token = await etsy_ensure_token()
+    try:
+        async with aiohttp.ClientSession() as sess:
+            form = aiohttp.FormData()
+            form.add_field("image", img_bytes, filename="cover.jpg", content_type="image/jpeg")
+            async with sess.post(
+                f"https://openapi.etsy.com/v3/application/shops/{ETSY_SHOP_ID}/listings/{listing_id}/images",
+                headers={"x-api-key": ETSY_API_KEY, "Authorization": f"Bearer {token}"},
+                data=form,
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def etsy_publish_listing(listing_id: str) -> dict:
+    if not (ETSY_API_KEY and ETSY_SHOP_ID):
+        return {"error": "Etsy not configured"}
+    token = await etsy_ensure_token()
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.patch(
+                f"https://openapi.etsy.com/v3/application/shops/{ETSY_SHOP_ID}/listings/{listing_id}",
+                headers={"x-api-key": ETSY_API_KEY,
+                         "Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"},
+                json={"state": "active"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                return await r.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def generate_cover_image(image_prompt: str) -> Optional[bytes]:
     safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", image_prompt)[:200].strip().replace(" ", "+")
     url = f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
@@ -673,8 +790,13 @@ async def build_stage_task(product: dict):
     publish = product.get("publish") or {}
 
     if stage == "RESEARCH":
-        search_hint = await searxng_search(f"best selling {vertical} templates Gumroad 2024")
-        # Build catalog of already-created product names to avoid duplicates
+        # Parallel multi-source demand research
+        reddit_hits, etsy_hits, gumroad_hits, trends_hits = await asyncio.gather(
+            searxng_search(f"site:reddit.com {vertical} template need looking for help 2024"),
+            searxng_search(f"etsy best selling {vertical} digital template 2024"),
+            searxng_search(f"gumroad {vertical} template bestseller popular 2024"),
+            searxng_search(f'"{vertical} template" buyers demand trend 2024'),
+        )
         existing = [
             (p.get("research") or {}).get("product_name", "")
             for p in pipeline.products
@@ -682,12 +804,21 @@ async def build_stage_task(product: dict):
         ]
         existing_str = ", ".join(existing[-10:]) if existing else "none yet"
         prompt = (
-            f"You are a market analyst specialized in digital products for Gumroad and Etsy.\n"
-            f"Find ONE profitable {vertical} digital template idea for English-speaking customers. Price range $9-$15.\n\n"
-            f"Already created products (DO NOT repeat these): {existing_str}\n\n"
-            f"Market research:\n{search_hint}\n\n"
+            f"You are a market analyst for digital products on Gumroad and Etsy.\n"
+            f"Find ONE highly profitable {vertical} digital template for English-speaking customers. Price $9-$15.\n\n"
+            f"Already created (DO NOT repeat): {existing_str}\n\n"
+            f"=== REAL MARKET DATA ===\n"
+            f"Reddit pain points (real buyer needs):\n{reddit_hits}\n\n"
+            f"Etsy bestsellers:\n{etsy_hits}\n\n"
+            f"Gumroad trending:\n{gumroad_hits}\n\n"
+            f"Demand signals:\n{trends_hits}\n\n"
+            f"=== RULES ===\n"
+            f"Pick a product that: (1) solves a specific problem mentioned in the data above, "
+            f"(2) has evidence of real buyer demand, (3) is not already saturated.\n\n"
             f"Output ONLY a valid JSON object (no other text, no markdown):\n"
-            f'{{"product_name":"string","target_audience":"string","price":12,"keywords":["k1","k2","k3"],"rationale":"string"}}'
+            f'{{"product_name":"string","target_audience":"string","price":12,'
+            f'"keywords":["k1","k2","k3"],"rationale":"string",'
+            f'"demand_evidence":"specific quote or data from research proving demand"}}'
         )
         return "market-analyst", prompt, "research"
 
@@ -859,19 +990,26 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                 tagline     = product.get("creation", {}).get("tagline", "")
 
                 if title and title != "Digital Template":
-                    # Check Gumroad daily creation limit (10/day)
+                    # Decide platform: Gumroad (if under daily limit) → Etsy fallback
                     today = datetime.now().strftime("%Y-%m-%d")
-                    created_today = sum(
+                    gumroad_today = sum(
                         1 for p in pipeline.products
                         if (p.get("publish") or {}).get("gumroad_id")
                         and (p.get("publish") or {}).get("published_at", "").startswith(today)
                     )
-                    if created_today >= 10:
+                    etsy_today = sum(
+                        1 for p in pipeline.products
+                        if (p.get("publish") or {}).get("etsy_listing_id")
+                        and (p.get("publish") or {}).get("published_at", "").startswith(today)
+                    )
+                    use_gumroad = gumroad_today < 10 and bool(GUMROAD_KEY)
+                    use_etsy    = not use_gumroad and bool(ETSY_API_KEY and ETSY_SHOP_ID)
+
+                    if not use_gumroad and not use_etsy:
                         import datetime as _dt
                         tomorrow = (_dt.datetime.now() + _dt.timedelta(days=1)).replace(
-                            hour=1, minute=0, second=0, microsecond=0
-                        )
-                        agent_log(aid, f"⏳ Gumroad daily limit ({created_today}/10) — retry after {tomorrow.strftime('%Y-%m-%d %H:%M')}")
+                            hour=1, minute=0, second=0, microsecond=0)
+                        agent_log(aid, f"⏳ All platforms at limit — retry after {tomorrow.strftime('%Y-%m-%d %H:%M')}")
                         for p in pipeline.products:
                             if p["id"] == product_id:
                                 p["assigned"]    = False
@@ -879,60 +1017,89 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                                 pipeline.save()
                         return
 
-                    # 1. Create product as draft
-                    resp = await gumroad_create_product(
-                        title=title[:100], description=desc[:5000],
-                        price_cents=int(price_cents), tags=tags,
-                    )
-                    if "product" in resp:
-                        gumroad_id = resp["product"].get("id", "")
-                        url        = resp["product"].get("short_url", "")
-                        result_json["gumroad_url"] = url
-                        result_json["gumroad_id"]  = gumroad_id
-                        agent_log(aid, f"📝 Draft created → {url}")
+                    # Generate shared assets (cover image + PDF)
+                    agent_log(aid, "🎨 Generating cover image...")
+                    img_bytes = await generate_cover_image(img_prompt)
 
-                        # 2. Generate cover image
-                        agent_log(aid, "🎨 Generating cover image...")
-                        img_bytes = await generate_cover_image(img_prompt)
+                    agent_log(aid, "📄 Generating PDF...")
+                    pdf_bytes = None
+                    try:
+                        pdf_bytes = generate_product_pdf(
+                            title=title, description=desc,
+                            features=features, tagline=tagline,
+                            image_bytes=img_bytes,
+                        )
+                    except Exception as pdf_err:
+                        agent_log(aid, f"⚠ PDF generation error: {pdf_err}")
 
-                        # 3. Generate and upload PDF
-                        agent_log(aid, "📄 Generating PDF...")
-                        try:
-                            pdf_bytes = generate_product_pdf(
-                                title=title, description=desc,
-                                features=features, tagline=tagline,
-                                image_bytes=img_bytes,
-                            )
-                            up = await gumroad_upload_file(
-                                gumroad_id, pdf_bytes,
-                                f"{title[:40].replace(' ','_')}.pdf", "application/pdf"
-                            )
-                            if up.get("success"):
-                                agent_log(aid, "📎 PDF uploaded")
+                    safe_filename = f"{title[:40].replace(' ','_')}.pdf"
+
+                    if use_gumroad:
+                        agent_log(aid, f"📦 Publishing on Gumroad ({gumroad_today}/10 today)...")
+                        resp = await gumroad_create_product(
+                            title=title[:100], description=desc[:5000],
+                            price_cents=int(price_cents), tags=tags,
+                        )
+                        if "product" in resp:
+                            gumroad_id = resp["product"].get("id", "")
+                            url        = resp["product"].get("short_url", "")
+                            result_json["gumroad_url"] = url
+                            result_json["gumroad_id"]  = gumroad_id
+                            result_json["platform"]    = "gumroad"
+
+                            if pdf_bytes:
+                                up = await gumroad_upload_file(gumroad_id, pdf_bytes, safe_filename, "application/pdf")
+                                agent_log(aid, "📎 PDF uploaded" if up.get("success")
+                                          else f"⚠ PDF upload: {json.dumps(up)[:150]}")
+
+                            if img_bytes:
+                                cr = await gumroad_upload_cover_image(gumroad_id, img_bytes)
+                                agent_log(aid, "🖼 Cover uploaded" if cr.get("success")
+                                          else f"⚠ Cover: {json.dumps(cr)[:150]}")
+
+                            pub = await gumroad_update_product(gumroad_id, {"published": "true"})
+                            if pub.get("product"):
+                                result_json["published_at"] = datetime.now().isoformat()
+                                agent_log(aid, f"🚀 Gumroad published → {url}")
                             else:
-                                agent_log(aid, f"⚠ PDF upload failed: {json.dumps(up)[:200]}")
-                        except Exception as pdf_err:
-                            agent_log(aid, f"⚠ PDF error: {pdf_err}")
-
-                        # 4. Upload cover image
-                        if img_bytes:
-                            cover_resp = await gumroad_upload_cover_image(gumroad_id, img_bytes)
-                            if cover_resp.get("success"):
-                                agent_log(aid, "🖼 Cover uploaded")
-                            else:
-                                agent_log(aid, f"⚠ Cover failed: {json.dumps(cover_resp)[:200]}")
-
-                        # 5. Publish the product
-                        pub = await gumroad_update_product(gumroad_id, {"published": "true"})
-                        if pub.get("product"):
-                            result_json["published_at"] = datetime.now().isoformat()
-                            agent_log(aid, f"🚀 Published → {url}")
+                                agent_log(aid, f"⚠ Gumroad publish update: {json.dumps(pub)[:150]}")
                         else:
-                            agent_log(aid, f"⚠ Publish update: {json.dumps(pub)[:200]}")
-                    else:
-                        err = resp.get("message") or resp.get("error", "unknown")
-                        result_json["gumroad_error"] = err
-                        agent_log(aid, f"⚠ Gumroad API: {err}")
+                            err = resp.get("message") or resp.get("error", "unknown")
+                            result_json["gumroad_error"] = err
+                            agent_log(aid, f"⚠ Gumroad API: {err}")
+
+                    elif use_etsy:
+                        price_usd = float(price_cents) / 100
+                        agent_log(aid, f"🛍 Publishing on Etsy ({etsy_today} today)...")
+                        listing = await etsy_create_listing(
+                            title=title[:140], description=desc,
+                            price_usd=price_usd, tags=tags,
+                        )
+                        listing_id = listing.get("listing_id") or listing.get("id")
+                        if listing_id:
+                            result_json["etsy_listing_id"] = str(listing_id)
+                            result_json["platform"]        = "etsy"
+
+                            if pdf_bytes:
+                                fu = await etsy_upload_digital_file(str(listing_id), pdf_bytes, safe_filename)
+                                agent_log(aid, "📎 File uploaded to Etsy" if fu.get("file_id")
+                                          else f"⚠ Etsy file: {json.dumps(fu)[:150]}")
+
+                            if img_bytes:
+                                iu = await etsy_upload_image(str(listing_id), img_bytes)
+                                agent_log(aid, "🖼 Image uploaded to Etsy" if iu.get("listing_image_id")
+                                          else f"⚠ Etsy image: {json.dumps(iu)[:150]}")
+
+                            pub = await etsy_publish_listing(str(listing_id))
+                            if pub.get("state") == "active" or pub.get("listing_id"):
+                                result_json["published_at"] = datetime.now().isoformat()
+                                etsy_url = f"https://www.etsy.com/listing/{listing_id}"
+                                result_json["etsy_url"] = etsy_url
+                                agent_log(aid, f"🚀 Etsy published → {etsy_url}")
+                            else:
+                                agent_log(aid, f"⚠ Etsy publish: {json.dumps(pub)[:150]}")
+                        else:
+                            agent_log(aid, f"⚠ Etsy create listing: {json.dumps(listing)[:200]}")
                 else:
                     agent_log(aid, "⚠ No valid title — skipping Gumroad publish")
 
