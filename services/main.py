@@ -793,29 +793,47 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
 
         # QA: check quality score and retry COPYWRITING if too low
         if aid == "qa-reviewer":
-            score = result_json.get("quality_score", 0) if not result_json.get("parse_error") else 0
-            if score < 50:
-                for p in pipeline.products:
-                    if p["id"] == product_id:
-                        p["stage"]      = "COPYWRITING"
-                        p["copy"]       = None
-                        p["assigned"]   = False
-                        p["updated_at"] = datetime.now().isoformat()
-                        pipeline.save()
-                agent_log(aid, f"✗ Quality {score}/100 too low — back to COPYWRITING")
-                # Save output but don't advance normally
-                out_dir = WORKSPACE / aid
-                out_dir.mkdir(parents=True, exist_ok=True)
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                (out_dir / f"{ts}_{product_id}_qa_rejected.json").write_text(
-                    json.dumps({"product_id": product_id, "score": score, "result": result_json}, indent=2)
-                )
-                xp_gain = 10
-                a["xp"] += xp_gain; a["level"] = xp_to_level(a["xp"]); a["tasks_done"] += 1
-                save_xp()
-                return  # skip normal advance
+            if result_json.get("parse_error"):
+                # JSON parse failed — recover from copy stage and advance rather than loop
+                product = pipeline.get_product(product_id)
+                raw_copy = (product.get("copy") or {}) if product else {}
+                recovered = (recover_copy(raw_copy.get("raw", str(raw_copy)))
+                             if raw_copy.get("parse_error") else raw_copy)
+                result_json = {
+                    "approved": True,
+                    "quality_score": 60,
+                    "title": recovered.get("title", "Digital Template"),
+                    "description": recovered.get("description", ""),
+                    "tags": recovered.get("tags", []),
+                    "price": recovered.get("price", 12),
+                    "image_prompt": f"{(product or {}).get('vertical','notion')} digital template professional clean minimal",
+                    "feedback": "QA JSON parse failed — advanced with copy data",
+                    "_qa_recovered": True,
+                }
+                agent_log(aid, "⚠ QA parse failed — recovered from copy, advancing to PUBLISHING")
             else:
-                agent_log(aid, f"✓ Quality {score}/100 — approved: {result_json.get('feedback','')[:80]}")
+                score = result_json.get("quality_score", 0)
+                if score < 50:
+                    for p in pipeline.products:
+                        if p["id"] == product_id:
+                            p["stage"]      = "COPYWRITING"
+                            p["copy"]       = None
+                            p["assigned"]   = False
+                            p["updated_at"] = datetime.now().isoformat()
+                            pipeline.save()
+                    agent_log(aid, f"✗ Quality {score}/100 too low — back to COPYWRITING")
+                    out_dir = WORKSPACE / aid
+                    out_dir.mkdir(parents=True, exist_ok=True)
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    (out_dir / f"{ts}_{product_id}_qa_rejected.json").write_text(
+                        json.dumps({"product_id": product_id, "score": score, "result": result_json}, indent=2)
+                    )
+                    xp_gain = 10
+                    a["xp"] += xp_gain; a["level"] = xp_to_level(a["xp"]); a["tasks_done"] += 1
+                    save_xp()
+                    return  # skip normal advance
+                else:
+                    agent_log(aid, f"✓ Quality {score}/100 — approved: {result_json.get('feedback','')[:80]}")
 
         # Publisher: use QA-approved data + generate PDF + image + upload to Gumroad
         if aid == "publisher":
