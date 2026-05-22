@@ -519,7 +519,7 @@ async def gumroad_create_product(title: str, description: str, price_cents: int,
                 headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
                 data={"name": title, "description": description,
                       "price": price_cents, "tags[]": tags[:5],
-                      "published": "true"},
+                      "published": "false"},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as r:
                 return await r.json()
@@ -838,24 +838,24 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                 tagline     = product.get("creation", {}).get("tagline", "")
 
                 if title and title != "Digital Template":
-                    # 1. Create Gumroad product
+                    # 1. Create product as draft
                     resp = await gumroad_create_product(
                         title=title[:100], description=desc[:5000],
                         price_cents=int(price_cents), tags=tags,
                     )
                     if "product" in resp:
-                        gumroad_id  = resp["product"].get("id", "")
-                        url         = resp["product"].get("short_url", "")
+                        gumroad_id = resp["product"].get("id", "")
+                        url        = resp["product"].get("short_url", "")
                         result_json["gumroad_url"] = url
                         result_json["gumroad_id"]  = gumroad_id
-                        agent_log(aid, f"🚀 Published → {url}")
+                        agent_log(aid, f"📝 Draft created → {url}")
 
                         # 2. Generate cover image
-                        agent_log(aid, f"🎨 Generating cover image...")
+                        agent_log(aid, "🎨 Generating cover image...")
                         img_bytes = await generate_cover_image(img_prompt)
 
-                        # 3. Generate PDF
-                        agent_log(aid, f"📄 Generating PDF...")
+                        # 3. Generate and upload PDF
+                        agent_log(aid, "📄 Generating PDF...")
                         try:
                             pdf_bytes = generate_product_pdf(
                                 title=title, description=desc,
@@ -867,19 +867,26 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                                 f"{title[:40].replace(' ','_')}.pdf", "application/pdf"
                             )
                             if up.get("success"):
-                                agent_log(aid, "📎 PDF uploaded to Gumroad")
+                                agent_log(aid, "📎 PDF uploaded")
                             else:
-                                agent_log(aid, f"⚠ PDF upload: {up.get('message','error')}")
+                                agent_log(aid, f"⚠ PDF upload failed: {json.dumps(up)[:200]}")
                         except Exception as pdf_err:
                             agent_log(aid, f"⚠ PDF error: {pdf_err}")
 
-                        # 4. Upload cover image as file (required by Gumroad to publish)
+                        # 4. Upload cover image
                         if img_bytes:
                             cover_resp = await gumroad_upload_cover_image(gumroad_id, img_bytes)
                             if cover_resp.get("success"):
-                                agent_log(aid, "🖼 Cover image uploaded")
+                                agent_log(aid, "🖼 Cover uploaded")
                             else:
-                                agent_log(aid, f"⚠ Cover image upload: {cover_resp.get('message', 'error')}")
+                                agent_log(aid, f"⚠ Cover failed: {json.dumps(cover_resp)[:200]}")
+
+                        # 5. Publish the product
+                        pub = await gumroad_update_product(gumroad_id, {"published": "true"})
+                        if pub.get("product"):
+                            agent_log(aid, f"🚀 Published → {url}")
+                        else:
+                            agent_log(aid, f"⚠ Publish update: {json.dumps(pub)[:200]}")
                     else:
                         err = resp.get("message") or resp.get("error", "unknown")
                         result_json["gumroad_error"] = err
