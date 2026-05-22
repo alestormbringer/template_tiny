@@ -220,10 +220,13 @@ class PipelineManager:
                 log.info(f"Auto-unblocked stuck product {p['id']} at stage {p['stage']}")
         self.save()
 
+        now = datetime.now().isoformat()
         actions = []
         for vertical in VERTICALS:
             active = [p for p in self.products
-                      if p["vertical"] == vertical and p["stage"] != "DONE" and not p.get("assigned")]
+                      if p["vertical"] == vertical and p["stage"] != "DONE"
+                      and not p.get("assigned")
+                      and p.get("retry_after", "0") <= now]
             in_progress = [p for p in self.products
                            if p["vertical"] == vertical and p["stage"] != "DONE"]
             if not in_progress:
@@ -856,6 +859,26 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                 tagline     = product.get("creation", {}).get("tagline", "")
 
                 if title and title != "Digital Template":
+                    # Check Gumroad daily creation limit (10/day)
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    created_today = sum(
+                        1 for p in pipeline.products
+                        if (p.get("publish") or {}).get("gumroad_id")
+                        and (p.get("publish") or {}).get("published_at", "").startswith(today)
+                    )
+                    if created_today >= 10:
+                        import datetime as _dt
+                        tomorrow = (_dt.datetime.now() + _dt.timedelta(days=1)).replace(
+                            hour=1, minute=0, second=0, microsecond=0
+                        )
+                        agent_log(aid, f"⏳ Gumroad daily limit ({created_today}/10) — retry after {tomorrow.strftime('%Y-%m-%d %H:%M')}")
+                        for p in pipeline.products:
+                            if p["id"] == product_id:
+                                p["assigned"]    = False
+                                p["retry_after"] = tomorrow.isoformat()
+                                pipeline.save()
+                        return
+
                     # 1. Create product as draft
                     resp = await gumroad_create_product(
                         title=title[:100], description=desc[:5000],
@@ -902,6 +925,7 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                         # 5. Publish the product
                         pub = await gumroad_update_product(gumroad_id, {"published": "true"})
                         if pub.get("product"):
+                            result_json["published_at"] = datetime.now().isoformat()
                             agent_log(aid, f"🚀 Published → {url}")
                         else:
                             agent_log(aid, f"⚠ Publish update: {json.dumps(pub)[:200]}")
