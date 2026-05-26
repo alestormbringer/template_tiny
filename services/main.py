@@ -32,6 +32,7 @@ LLM_API_KEY  = os.getenv("OPENAI_API_KEY",   "ollama")
 GUMROAD_KEY  = os.getenv("GUMROAD_API_KEY",  "")
 NOTION_KEY   = os.getenv("NOTION_API_KEY",   "")
 SEARXNG_URL  = os.getenv("SEARXNG_BASE_URL", "http://searxng:8080")
+PUBLIC_URL   = os.getenv("PUBLIC_URL",        "").rstrip("/")
 WORKSPACE    = Path("/root/workspace")
 ETSY_API_KEY      = os.getenv("ETSY_API_KEY",      "")
 ETSY_SHOP_ID      = os.getenv("ETSY_SHOP_ID",      "")
@@ -552,20 +553,21 @@ async def gumroad_upload_file(product_id: str, file_bytes: bytes, filename: str,
         return {"error": str(e)}
 
 
-async def gumroad_upload_cover_image(product_id: str, img_bytes: bytes) -> dict:
+async def gumroad_upload_cover_image(product_id: str, img_url: str) -> dict:
     if not GUMROAD_KEY:
         return {"error": "No Gumroad key"}
     try:
         async with aiohttp.ClientSession() as sess:
-            form = aiohttp.FormData()
-            form.add_field("preview", img_bytes, filename="cover.jpg", content_type="image/jpeg")
-            async with sess.put(
-                f"https://api.gumroad.com/v2/products/{product_id}",
+            async with sess.post(
+                f"https://api.gumroad.com/v2/products/{product_id}/covers",
                 headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
-                data=form,
+                data={"url": img_url},
                 timeout=aiohttp.ClientTimeout(total=60),
             ) as r:
-                return await r.json()
+                if r.content_type == "application/json":
+                    return await r.json()
+                text = await r.text()
+                return {"error": f"HTTP {r.status}: {text[:200]}"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -699,16 +701,20 @@ async def etsy_publish_listing(listing_id: str) -> dict:
         return {"error": str(e)}
 
 
-async def generate_cover_image(image_prompt: str) -> Optional[bytes]:
+def get_cover_image_url(image_prompt: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", image_prompt)[:200].strip().replace(" ", "+")
-    url = f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
+    return f"https://image.pollinations.ai/prompt/{safe}?width=1200&height=800&nologo=true&seed=42"
+
+
+async def generate_cover_image(image_prompt: str) -> Optional[bytes]:
+    url = get_cover_image_url(image_prompt)
     try:
         async with aiohttp.ClientSession() as sess:
             async with sess.get(url, timeout=aiohttp.ClientTimeout(total=60)) as r:
                 if r.status == 200:
                     return await r.read()
     except Exception as e:
-        log.warning(f"Image generation failed: {e}")
+        log.warning(f"Image download failed: {e}")
     return None
 
 
@@ -1018,17 +1024,27 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                         return
 
                     # Generate shared assets (cover image + PDF)
+                    cover_url = get_cover_image_url(img_prompt)
                     agent_log(aid, "🎨 Generating cover image...")
                     img_bytes = await generate_cover_image(img_prompt)
 
                     agent_log(aid, "📄 Generating PDF...")
                     pdf_bytes = None
+                    pdf_public_url = None
                     try:
                         pdf_bytes = generate_product_pdf(
                             title=title, description=desc,
                             features=features, tagline=tagline,
                             image_bytes=img_bytes,
                         )
+                        # Save PDF to shared nginx volume for public download
+                        if pdf_bytes and PUBLIC_URL:
+                            downloads_dir = WORKSPACE / "downloads"
+                            downloads_dir.mkdir(parents=True, exist_ok=True)
+                            safe_fname = re.sub(r"[^a-zA-Z0-9_\-]", "_", title[:40]) + f"_{product_id}.pdf"
+                            (downloads_dir / safe_fname).write_bytes(pdf_bytes)
+                            pdf_public_url = f"{PUBLIC_URL}/downloads/{safe_fname}"
+                            agent_log(aid, f"📎 PDF saved → {pdf_public_url}")
                     except Exception as pdf_err:
                         agent_log(aid, f"⚠ PDF generation error: {pdf_err}")
 
@@ -1047,17 +1063,17 @@ async def execute_pipeline_task(aid: str, task: str, product_id: str, data_key: 
                             result_json["gumroad_id"]  = gumroad_id
                             result_json["platform"]    = "gumroad"
 
-                            if pdf_bytes:
-                                up = await gumroad_upload_file(gumroad_id, pdf_bytes, safe_filename, "application/pdf")
-                                agent_log(aid, "📎 PDF uploaded" if up.get("success")
-                                          else f"⚠ PDF upload: {json.dumps(up)[:150]}")
+                            # Upload cover via URL (correct Gumroad endpoint)
+                            cr = await gumroad_upload_cover_image(gumroad_id, cover_url)
+                            agent_log(aid, "🖼 Cover uploaded" if cr.get("success")
+                                      else f"⚠ Cover: {json.dumps(cr)[:150]}")
 
-                            if img_bytes:
-                                cr = await gumroad_upload_cover_image(gumroad_id, img_bytes)
-                                agent_log(aid, "🖼 Cover uploaded" if cr.get("success")
-                                          else f"⚠ Cover: {json.dumps(cr)[:150]}")
+                            # Set PDF download URL if available
+                            update_fields: dict = {"published": "true"}
+                            if pdf_public_url:
+                                update_fields["url"] = pdf_public_url
 
-                            pub = await gumroad_update_product(gumroad_id, {"published": "true"})
+                            pub = await gumroad_update_product(gumroad_id, update_fields)
                             if pub.get("product"):
                                 result_json["published_at"] = datetime.now().isoformat()
                                 agent_log(aid, f"🚀 Gumroad published → {url}")

@@ -38,6 +38,7 @@ services:
     volumes:
       - ./ui:/usr/share/nginx/html
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - agents-data:/var/www/workspace:ro
     networks:
       - tinyagi-net
     depends_on:
