@@ -4,7 +4,8 @@ import AgentRoom from './AgentRoom.jsx'
 
 const AGENT_ORDER = [
   'tinyagi', 'market-analyst', 'notion-creator', 'finance-creator',
-  'business-creator', 'copywriter', 'publisher', 'analytics',
+  'business-creator', 'copywriter', 'qa-reviewer', 'image-generator',
+  'file-builder', 'publisher', 'analytics',
 ]
 
 // ─── Starfield canvas ─────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ export default function AgentGrid({ agents }) {
       {/* Starfield */}
       <canvas ref={starRef} className="starfield" />
 
-      {/* Grid 4×2 */}
+      {/* Grid 4×3 */}
       <motion.div
         className="agent-grid"
         initial={{ opacity: 0 }}

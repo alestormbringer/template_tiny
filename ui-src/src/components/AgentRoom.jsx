@@ -8,6 +8,9 @@ export const ROOM_CONFIG = {
   'finance-creator':  { color: '#ffdd77', label: 'FINANCE'  },
   'business-creator': { color: '#cc88ff', label: 'STRATEGY' },
   'copywriter':       { color: '#ff99cc', label: 'CONTENT'  },
+  'qa-reviewer':      { color: '#ffcc44', label: 'QA'       },
+  'image-generator':  { color: '#ff9900', label: 'IMAGE'    },
+  'file-builder':     { color: '#00ccff', label: 'BUILD'    },
   'publisher':        { color: '#ff8877', label: 'PUBLISH'  },
   'analytics':        { color: '#77eedd', label: 'ANALYTICS'},
 }
@@ -27,6 +30,9 @@ const CHAR_THEMES = {
   'finance-creator':  { accent: '#ffdd55', hat: '#2a2a0a' },
   'business-creator': { accent: '#cc88ff', hat: '#1a0a2a' },
   'copywriter':       { accent: '#ff88cc', hat: '#2a0a1a' },
+  'qa-reviewer':      { accent: '#ffcc44', hat: '#1a1800' },
+  'image-generator':  { accent: '#ff9900', hat: '#2a1800' },
+  'file-builder':     { accent: '#00ccff', hat: '#001a2a' },
   'publisher':        { accent: '#ff8866', hat: '#2a0a0a' },
   'analytics':        { accent: '#55ffdd', hat: '#0a2a2a' },
 }
