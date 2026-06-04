@@ -47,6 +47,8 @@ def agents_request(method: str, path: str, data: dict = None):
 
 
 def main():
+    global BASE_URL
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--delete",   action="store_true", help="Delete drafts from Gumroad")
     parser.add_argument("--repair",   action="store_true", help="Trigger /pipeline/repair")
@@ -57,7 +59,6 @@ def main():
         print("ERROR: set GUMROAD_API_KEY env var", file=sys.stderr)
         sys.exit(1)
 
-    global BASE_URL
     BASE_URL = args.base_url
 
     print("=== Fetching Gumroad products ===")
