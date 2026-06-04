@@ -16,6 +16,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import urllib.parse
+
 import aiohttp
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -727,17 +729,37 @@ async def etsy_publish_listing(listing_id: str) -> dict:
 
 
 # ── Image & PDF generation ────────────────────────────────────────────────────
+def _pdf_safe(text: str) -> str:
+    """Escape HTML entities so reportlab Paragraph doesn't crash on LLM output."""
+    return (str(text)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+
 async def generate_cover_image(image_prompt: str, seed: int = 42) -> Optional[bytes]:
-    safe = re.sub(r"[^a-zA-Z0-9 ,\-]", "", image_prompt)[:200].strip().replace(" ", "+")
-    url  = (f"https://image.pollinations.ai/prompt/{safe}"
-            f"?width=1200&height=800&nologo=true&seed={seed}")
-    try:
-        async with aiohttp.ClientSession() as sess:
-            async with sess.get(url, timeout=aiohttp.ClientTimeout(total=60)) as r:
-                if r.status == 200:
-                    return await r.read()
-    except Exception as e:
-        log.warning(f"Image generation failed: {e}")
+    # Proper URL encoding — Pollinations.ai needs %20 not +
+    encoded = urllib.parse.quote(image_prompt[:300].strip(), safe=",-")
+    url = (f"https://image.pollinations.ai/prompt/{encoded}"
+           f"?width=1200&height=800&nologo=true&seed={seed}&model=flux")
+    for attempt in range(3):
+        try:
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(url, timeout=aiohttp.ClientTimeout(total=90)) as r:
+                    if r.status == 200:
+                        data = await r.read()
+                        # Sanity check: a valid JPEG/PNG is at least a few KB
+                        if len(data) > 2048:
+                            return data
+                        log.warning(f"Image gen: response too small ({len(data)} bytes), retry")
+                    else:
+                        log.warning(f"Image gen HTTP {r.status} (attempt {attempt+1}/3)")
+        except asyncio.TimeoutError:
+            log.warning(f"Image gen timeout (attempt {attempt+1}/3)")
+        except Exception as e:
+            log.warning(f"Image generation failed: {e}")
+            break
+        await asyncio.sleep(5)
     return None
 
 
@@ -768,16 +790,16 @@ def generate_product_pdf(
         except Exception:
             pass
 
-    story.append(Paragraph(title, styles["Title"]))
+    story.append(Paragraph(_pdf_safe(title), styles["Title"]))
     if tagline:
-        story.append(Paragraph(tagline, styles["Italic"]))
+        story.append(Paragraph(_pdf_safe(tagline), styles["Italic"]))
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2D3A8C")))
     story.append(Spacer(1, 14))
 
     if sections:
         for section in sections:
-            heading = (section.get("heading") or "").strip()
+            heading = _pdf_safe((section.get("heading") or "").strip())
             content = (section.get("content") or "").strip()
             if heading:
                 story.append(Paragraph(heading, styles["Heading1"]))
@@ -786,21 +808,21 @@ def generate_product_pdf(
                 if not line:
                     story.append(Spacer(1, 4))
                 elif line.startswith(("•", "-", "*")):
-                    story.append(Paragraph(line, bullet))
+                    story.append(Paragraph(_pdf_safe(line), bullet))
                 else:
-                    story.append(Paragraph(line, styles["Normal"]))
+                    story.append(Paragraph(_pdf_safe(line), styles["Normal"]))
             story.append(Spacer(1, 14))
     else:
         story.append(Paragraph("Overview", styles["Heading1"]))
         story.append(Paragraph(
-            description[:1200] if description else "Professional digital template.",
+            _pdf_safe(description[:1200]) if description else "Professional digital template.",
             styles["Normal"]
         ))
         story.append(Spacer(1, 14))
         if features:
             story.append(Paragraph("What's Included", styles["Heading1"]))
             for f in features:
-                story.append(Paragraph(f"• {f}", accent))
+                story.append(Paragraph(_pdf_safe(f"• {f}"), accent))
             story.append(Spacer(1, 14))
 
     story.append(Spacer(1, 20))
