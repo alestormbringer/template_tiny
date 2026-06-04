@@ -603,10 +603,13 @@ async def gumroad_update_product(product_id: str, fields: dict) -> dict:
         return {"error": "No Gumroad key"}
     try:
         async with aiohttp.ClientSession() as sess:
+            form = aiohttp.FormData()
+            for k, v in fields.items():
+                form.add_field(k, str(v))
             async with sess.put(
                 f"https://api.gumroad.com/v2/products/{product_id}",
                 headers={"Authorization": f"Bearer {GUMROAD_KEY}"},
-                data=fields,
+                data=form,
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as r:
                 log.info(f"Gumroad update_product HTTP {r.status}")
@@ -1651,3 +1654,108 @@ async def agent_outputs(aid: str):
     return {"files": [{"name": f.name,
                         "content": f.read_text(encoding="utf-8", errors="replace")[:800]}
                        for f in files]}
+
+
+@app.get("/pipeline/diagnose")
+async def pipeline_diagnose():
+    """Returns a full breakdown of stuck, errored, and in-progress products."""
+    now = datetime.now().isoformat()
+    stuck_cutoff = (datetime.now() - timedelta(minutes=20)).isoformat()
+
+    result = {
+        "summary": pipeline.stats(),
+        "stuck": [],
+        "publish_errors": [],
+        "gumroad_draft_only": [],
+        "in_progress": [],
+        "done": [],
+    }
+
+    for p in pipeline.products:
+        stage = p.get("stage", "?")
+        pub   = p.get("publish") or {}
+        entry = {
+            "id":               p["id"],
+            "vertical":         p["vertical"],
+            "stage":            stage,
+            "assigned":         p.get("assigned"),
+            "updated_at":       p.get("updated_at", ""),
+            "publish_attempts": p.get("publish_attempts", 0),
+            "gumroad_id":       pub.get("gumroad_id", ""),
+            "gumroad_url":      pub.get("gumroad_url", ""),
+            "published_at":     pub.get("published_at", ""),
+            "title": (
+                (p.get("qa") or {}).get("title")
+                or (p.get("copy") or {}).get("title")
+                or (p.get("research") or {}).get("product_name", "")
+            ),
+        }
+
+        if stage == "DONE":
+            result["done"].append(entry)
+        elif stage == "PUBLISH_ERROR":
+            result["publish_errors"].append(entry)
+        elif pub.get("gumroad_id") and not pub.get("published_at"):
+            # Has a gumroad draft but was never published
+            result["gumroad_draft_only"].append(entry)
+        elif p.get("assigned") and p.get("updated_at", "") < stuck_cutoff:
+            result["stuck"].append(entry)
+        else:
+            result["in_progress"].append(entry)
+
+    return result
+
+
+@app.post("/pipeline/repair")
+async def pipeline_repair(body: dict = {}):
+    """
+    Repair stuck products:
+    - reset PUBLISH_ERROR → PUBLISHING (retry publishing)
+    - force-unblock stuck assigned products
+    - optionally reset specific product ids (body: {"product_ids": ["..."]})
+    """
+    target_ids = set(body.get("product_ids") or [])
+    repaired = []
+
+    for p in pipeline.products:
+        pid   = p["id"]
+        stage = p.get("stage", "")
+
+        if target_ids and pid not in target_ids:
+            continue
+
+        if stage == "PUBLISH_ERROR":
+            p["stage"]            = "PUBLISHING"
+            p["assigned"]         = False
+            p["publish_attempts"] = 0
+            p.pop("retry_after", None)
+            p["updated_at"] = datetime.now().isoformat()
+            repaired.append({"id": pid, "action": "reset PUBLISH_ERROR → PUBLISHING"})
+
+        elif p.get("assigned"):
+            p["assigned"]   = False
+            p["updated_at"] = datetime.now().isoformat()
+            repaired.append({"id": pid, "action": "force-unblocked assigned"})
+
+    pipeline.save()
+    return {"repaired": repaired, "count": len(repaired)}
+
+
+@app.post("/pipeline/reset_product/{product_id}")
+async def reset_product_to_stage(product_id: str, body: dict = {}):
+    """Reset a specific product to a given stage (default: PUBLISHING)."""
+    stage = body.get("stage", "PUBLISHING")
+    if stage not in STAGE_SEQUENCE:
+        raise HTTPException(400, f"Invalid stage. Valid: {STAGE_SEQUENCE}")
+
+    p = pipeline.get_product(product_id)
+    if not p:
+        raise HTTPException(404, "Product not found")
+
+    p["stage"]            = stage
+    p["assigned"]         = False
+    p["publish_attempts"] = 0
+    p.pop("retry_after", None)
+    p["updated_at"] = datetime.now().isoformat()
+    pipeline.save()
+    return {"id": product_id, "new_stage": stage}
