@@ -1,114 +1,75 @@
-# tinyAGI — OVHcloud VPS Setup
+# Digital Product Factory
 
-Setup standalone di [tinyAGI](https://github.com/TinyAGI/tinyagi) su VPS OVHcloud con LLM locale tramite **Ollama**.
-Nessun costo API: i modelli girano direttamente sul VPS.
-Isolato dal trading bot che gira sulla porta 8080.
+Due processi per prodotti digitali, ripartiti da zero su base pulita:
 
-## Architettura
+| | Processo 1 — `factory/` | Processo 2 — `books/` |
+|---|---|---|
+| Prodotto | Template digitali (Notion, Excel, Business PDF) | Libri illustrati per bambini |
+| Automazione | Completa, 24/7 su VPS | Semi-automatica (AI + checklist guidate) |
+| Piattaforme | Gumroad (API), Etsy fallback | KDP, Apple Books, Gumroad, Sellfy, Payhip |
+| Tempo umano | ~0 (o ~60s/prodotto con approvazione attiva) | 10-15 min/piattaforma per titolo |
 
-```
-VPS OVHcloud
-├── [porta 8080]  trading-bot    (rete Docker separata, nessuna relazione)
-└── [porta 8090]  tinyagi :3777  ─┐  rete: tinyagi-net
-                  ollama  :11434 ─┘  (porta interna, non esposta)
-```
+## Processo 1 — Template factory (`factory/`)
 
-tinyAGI e Ollama comunicano internamente via `http://ollama:11434/v1`.
-Ollama non e' mai raggiungibile dall'esterno.
-
-## Struttura del progetto
+Pipeline autonoma:
 
 ```
-template_tiny/
-├── config/
-│   └── settings.json          # Configurazione tinyAGI (agent, provider Ollama)
-├── docker/
-│   └── Dockerfile             # Build Node.js multi-stage da GitHub
-├── scripts/
-│   ├── setup.sh               # Installa Docker sul VPS
-│   ├── start.sh               # Avvio stack + download modello
-│   └── pull_model.sh          # Cambia/aggiorna modello Ollama
-├── data/
-├── logs/
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-└── README.md
+RESEARCH → DESIGN → COPYWRITING → BUILD → VERIFY → IMAGE → PUBLISH → RELEASE → DONE
 ```
 
-## Quick Start
+I due stage **BUILD** e **VERIFY** sono la correzione del difetto storico del
+vecchio sistema ("si crea la bozza ma non il documento"): prima l'output del
+modello restava testo nella risposta LLM e nessuna riga di codice lo passava a
+`openpyxl.save()` o `notion.pages.create()`. Ora:
+
+- **BUILD** esegue la chiamata reale che scrive il file: `.xlsx` vero con
+  openpyxl (fogli, colonne, formule), pagina Notion vera via API, PDF
+  multi-sezione con reportlab. Un errore di build è un errore, non un warning.
+- **VERIFY** controlla che l'artefatto esista davvero (file su disco, dimensione
+  minima, magic bytes, workbook apribile, pagina Notion recuperabile via API)
+  prima di segnare il prodotto come pronto. Niente artefatto verificato =
+  niente pubblicazione, mai.
+- **PUBLISH** carica il file verificato: se l'upload fallisce, la pubblicazione
+  fallisce (il vecchio codice pubblicava comunque).
+- **RELEASE** mette live e ri-legge il prodotto da Gumroad per confermare che
+  sia davvero pubblicato. Con `AUTO_PUBLISH=false` si ferma in bozza pronta e
+  aspetta `POST /pipeline/approve/{id}` (il passaggio umano da ~60 secondi).
+
+In più: report analytics giornaliero (vendite Gumroad → LLM → decisione
+"nuova nicchia o variante del best seller") che alimenta la ricerca del giorno.
+
+### Avvio
 
 ```bash
-# 1. Clona la repository
-git clone https://github.com/alestormbringer/template_tiny.git tinyagi
-cd tinyagi
+cp .env.example .env   # compila OPENAI_API_KEY (Groq) e GUMROAD_API_KEY
+docker compose up -d --build
 
-# 2. Installa Docker (se non presente)
-sudo bash scripts/setup.sh
-
-# 3. Configura variabili d'ambiente
-cp .env.example .env
-# nano .env  # opzionale: cambia porta o modello
-
-# 4. Avvia tutto (prima volta: ~10-15 min per build + download modello)
-sudo bash scripts/start.sh
+curl -s http://localhost:8090/health | python3 -m json.tool
+curl -s http://localhost:8090/pipeline/diagnose | python3 -m json.tool
 ```
 
-tinyAGI sara' raggiungibile su `http://<IP_VPS>:8090`.
+## Processo 2 — Libri per bambini (`books/`)
 
-## Porte
+Fase 1 bozza AI (concept + prompt Gemini Storybook) → Fase 2 produzione
+print-ready (spec KDP: trim, bleed, dorso, copertina full-wrap + checklist
+Book Bolt) → Fase 3 pubblicazione multi-piattaforma con checklist (inclusa la
+**disclosure AI obbligatoria su KDP**) → Fase 4 log vendite settimanale →
+Fase 5 decisione AI (nuovo libro vs sequel/serie).
 
-| Servizio      | Porta  | Visibilita'   | Note                              |
-|---------------|--------|---------------|-----------------------------------|
-| Trading Bot   | 8080   | Esterna       | Rete Docker separata              |
-| tinyAGI       | 8090   | Esterna       | Mappa su container :3777          |
-| Ollama API    | 11434  | Solo interna  | Accessibile solo da tinyAGI       |
+Vedi [books/README.md](books/README.md) per il workflow completo e i comandi.
 
-## Variabili d'ambiente
+## Struttura
 
-| Variabile        | Default        | Descrizione                   |
-|------------------|----------------|-------------------------------|
-| `TINYAGI_PORT`   | `8090`         | Porta esposta da tinyAGI      |
-| `OLLAMA_MODEL`   | `llama3.1:8b`  | Modello da usare con Ollama   |
-| `LOG_LEVEL`      | `INFO`         | Livello di logging            |
-
-## Modelli consigliati (4 vCPU / 8GB RAM)
-
-| Modello           | RAM richiesta | Qualita' |
-|-------------------|---------------|----------|
-| `llama3.1:8b`     | ~5 GB         | Ottima   |
-| `mistral:7b`      | ~4.5 GB       | Ottima   |
-| `llama3.2:3b`     | ~2 GB         | Buona    |
-| `phi3:mini`       | ~2.3 GB       | Buona    |
-
-## Comandi utili
-
-```bash
-# Avvio completo (build + download modello)
-sudo bash scripts/start.sh
-
-# Solo avviare senza rebuild
-docker compose up -d
-
-# Fermare tutto
-docker compose down
-
-# Log tinyAGI
-docker compose logs -f tinyagi
-
-# Log Ollama
-docker compose logs -f ollama
-
-# Cambiare modello
-./scripts/pull_model.sh mistral:7b
-# poi aggiorna OLLAMA_MODEL in .env e config/settings.json
-
-# Elenco modelli scaricati
-docker exec ollama ollama list
-
-# Stato container
-docker compose ps
-
-# Riavviare solo tinyAGI
-docker compose restart tinyagi
 ```
+factory/            Processo 1 — FastAPI + orchestratore (Docker, VPS)
+  app/stages/       uno stage = un modulo (build.py e verify.py sono la fix)
+  app/builders/     generazione file reale: pdf, xlsx, notion
+  app/integrations/ gumroad, etsy, pollinations, notion, searxng
+books/              Processo 2 — CLI bookctl.py + moduli per fase
+scripts/            recover_gumroad_drafts.py (bozze orfane), setup.sh (VPS)
+searxng/            config del container di ricerca self-hosted
+data/               cataloghi e stato locale (gitignored)
+```
+
+Lo storico del vecchio sistema (dashboard React, monolite `services/main.py`,
+config tinyAGI) è stato rimosso: resta recuperabile nella history git.

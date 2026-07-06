@@ -4,101 +4,113 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-An autonomous digital product factory deployed on an OVHcloud VPS. It runs a multi-agent pipeline that researches market demand, creates digital templates (Notion, Excel/Finance, Business), generates PDFs and cover images, and publishes them to Gumroad — fully automated, 24/7.
+Two digital-product processes sharing one repo:
+
+1. **`factory/` — Template factory (Process 1)**: fully automated pipeline on an
+   OVHcloud VPS that researches demand, designs digital templates (Notion,
+   Excel/Finance, Business PDF), **builds real files**, verifies them, and
+   publishes to Gumroad (Etsy fallback). FastAPI + asyncio orchestrator, Docker.
+2. **`books/` — Children's books (Process 2)**: semi-automated CLI toolkit for
+   AI-drafted picture books published manually across KDP, Apple Books,
+   Gumroad, Sellfy, Payhip. No 24/7 service — human-in-the-loop by design
+   (KDP/Apple require editorial review and the KDP AI disclosure).
+
+## The core invariant (Process 1) — never weaken it
+
+The old system's defining bug: the LLM's template design stayed **text in the
+model response**; no code ever wrote a real file, and the publisher pushed
+products live even when the PDF was missing → Gumroad drafts with no document.
+
+The fix is structural, two dedicated stages:
+
+- **BUILD** (`factory/app/stages/build.py`) makes the real API/library call that
+  writes the artifact: `openpyxl` workbook saved to disk, `notion.pages.create`,
+  reportlab PDF. Build exceptions are failures with retry/backoff → `BUILD_ERROR`.
+- **VERIFY** (`factory/app/stages/verify.py`) independently proves the artifact
+  exists: file on disk, min size, magic bytes (`%PDF-` / `PK\x03\x04`), workbook
+  opens, Notion page retrievable via `pages.retrieve`. Failure sends the product
+  back to BUILD.
+- **PUBLISH** re-checks the verified artifact on disk and treats a failed file
+  upload as a failed publish (never "publish anyway").
+- **RELEASE** flips `published=true` and re-fetches the product to confirm it is
+  actually live. With `AUTO_PUBLISH=false` it waits for
+  `POST /pipeline/approve/{id}` (the ~60s human step).
+
+Any change that lets a product reach PUBLISH/RELEASE without a verified artifact
+reintroduces the old bug. Don't.
+
+## Pipeline (Process 1)
+
+```
+RESEARCH → DESIGN → COPYWRITING → BUILD → VERIFY → IMAGE → PUBLISH → RELEASE → DONE
+```
+
+Error states: `BUILD_ERROR`, `PUBLISH_ERROR` (both after 3 attempts).
+Stage handlers live in `factory/app/stages/`, one module per stage, registered
+in `stages/__init__.py`. The orchestrator (`app/main.py`) ticks every 300s:
+unsticks stale products, runs the daily analytics report (Gumroad sales → LLM →
+new-niche-vs-variant decision that seeds RESEARCH), tops up each vertical to
+`MAX_WIP_PER_VERTICAL`, then advances every actionable product one stage.
+
+**Two LLM tiers** (both Groq, OpenAI-compatible): fast `llama-3.1-8b-instant`
+(research, image prompts), quality `llama-3.3-70b-versatile` (design, copy,
+analytics). See `factory/app/llm.py`.
 
 ## VPS & infrastructure
 
-- **VPS**: OVHcloud Ubuntu, accessed via `ssh ubuntu@<IP>`
-- **External port**: `8090` (mapped to internal `3778`) — the agents API
-- **Dashboard**: port `3000` (nginx serving the React UI as static assets)
+- **VPS**: OVHcloud Ubuntu, `ssh ubuntu@<IP>`
+- **External port** `8090` (host) → `3778` (container) — set `FACTORY_PORT` in `.env`
 - **All docker commands use `docker compose` (v2, no hyphen)**
-- The `agents-data` Docker volume at `/root/workspace` persists pipeline state across restarts
+- The `agents-data` volume at `/root/workspace` persists state. It still holds
+  the legacy `pipeline.json` (untouched); the new pipeline writes
+  `pipeline_v2.json`. **Never delete this volume.**
 
 ```bash
-# Start / stop
-docker compose up -d --build   # rebuild after code changes
-docker compose down
+docker compose up -d --build          # rebuild after code changes
+docker compose logs -f factory
 
-# Logs
-docker compose logs -f agents
-docker compose logs --tail=50 agents
-
-# Pipeline health check
 curl -s http://localhost:8090/health | python3 -m json.tool
-
-# Pipeline diagnosis (stuck, errors, draft-only products)
 curl -s http://localhost:8090/pipeline/diagnose | python3 -m json.tool
-
-# Reset all PUBLISH_ERROR products back to PUBLISHING
 curl -s -X POST http://localhost:8090/pipeline/repair | python3 -m json.tool
-
-# Reset a specific product to a given stage
 curl -s -X POST http://localhost:8090/pipeline/reset_product/<prod_id> \
-  -H "Content-Type: application/json" -d '{"stage":"FILE_BUILDER"}'
+  -H "Content-Type: application/json" -d '{"stage":"BUILD"}'
+curl -s -X POST http://localhost:8090/pipeline/approve/<prod_id>   # AUTO_PUBLISH=false
 ```
 
-## Architecture
+## Critical integration fixes (do not revert)
 
-```
-services/main.py        ← entire backend: FastAPI + all agents + pipeline logic
-services/Dockerfile     ← python:3.11-slim, installs requirements, runs uvicorn on :3778
-services/requirements.txt
-nginx/default.conf      ← proxies /agents/ and /health to agents container
-ui/                     ← pre-built React dashboard (static, served by nginx)
-ui-src/                 ← React source (Vite). Build output goes to ui/
-scripts/
-  recover_gumroad_drafts.py  ← diagnose + delete Gumroad orphan drafts
-config/settings.json    ← legacy tinyAGI config (not used by main.py)
-```
+1. **Gumroad writes must use `aiohttp.FormData()`** with
+   `form.add_field(k, str(v))` (`factory/app/integrations/gumroad.py`). A plain
+   dict as `data=` sends the wrong content-type and Gumroad silently ignores
+   `published=true` — products stay drafts forever.
+2. **Pollinations.ai URL encoding**: `urllib.parse.quote(prompt, safe=",-")`
+   (`integrations/pollinations.py`). Never `.replace(" ", "+")` — %20 required.
+   Retries 3x with 5s gap, validates response > 2KB.
+3. **reportlab HTML escaping**: all LLM text through `pdf_safe()`
+   (`builders/pdf_builder.py`) which escapes `&`, `<`, `>` — raw LLM output
+   breaks Paragraph() silently otherwise.
 
-### Pipeline stages (in order)
+## Process 2 — children's books (`books/`)
 
-`RESEARCH → CREATION → COPYWRITING → QA → IMAGE_GEN → FILE_BUILDER → PUBLISHING → ANALYTICS → DONE`
+CLI: `books/bookctl.py` (argparse, one JSON per book in `data/books/`).
+Phases map to modules: `concept.py` (Fase 1: story + character sheet + Gemini
+Storybook prompt), `production.py` (Fase 2: KDP trim/bleed/spine/full-wrap
+calculator + Book Bolt checklist), `platforms.py` (Fase 3: per-platform
+checklists — the KDP one includes the **mandatory AI-content disclosure**),
+sales log + `advise` (Fasi 4-5) in `bookctl.py`.
 
-Terminal error state: `PUBLISH_ERROR` (after 3 failed publish attempts).
-
-### Agent roles in `services/main.py`
-
-| Agent | Model tier | Role |
-|---|---|---|
-| `tinyagi` | fast | Orchestrator — scans pipeline every 5 min, assigns tasks |
-| `market-analyst` | fast | RESEARCH stage — searches SearXNG for demand signals |
-| `notion-creator` / `finance-creator` / `business-creator` | fast | CREATION stage |
-| `copywriter` | quality | COPYWRITING stage — SEO title, description, 13 tags |
-| `qa-reviewer` | quality | QA stage — scores quality, generates image prompt |
-| `image-generator` | API-only | IMAGE_GEN — calls Pollinations.ai |
-| `file-builder` | quality | FILE_BUILDER — generates 7-section PDF content as JSON |
-| `publisher` | API-only | PUBLISHING — generates PDF with reportlab, uploads to Gumroad |
-| `analytics` | fast | ANALYTICS — LLM summary of product performance |
-
-**Two LLM tiers** (both via Groq API, OpenAI-compatible):
-- Fast: `llama-3.1-8b-instant` (orchestrator, creators, research)
-- Quality: `llama-3.3-70b-versatile` (copywriter, QA, file-builder)
-
-### Key external services
-
-- **Groq API** — LLM inference (`OPENAI_API_KEY` + `OPENAI_BASE_URL=https://api.groq.com/openai/v1`)
-- **Gumroad API v2** — product creation and publishing (`GUMROAD_API_KEY`)
-- **Pollinations.ai** — free cover image generation (no key needed, model=flux)
-- **SearXNG** — self-hosted search container (`http://searxng:8080`)
-
-## Critical bugs fixed (do not revert)
-
-### 1. `gumroad_update_product` must use `aiohttp.FormData()`
-All Gumroad API calls must use `FormData` with `form.add_field(k, str(v))`. Passing a plain Python dict as `data=` to `aiohttp.put()` sends the wrong content-type and the API silently ignores the `published=true` field — products stay as drafts forever.
-
-### 2. Pollinations.ai URL encoding
-Use `urllib.parse.quote(prompt, safe=",-")` for the image prompt. Do **not** use `.replace(" ", "+")` — Pollinations.ai requires `%20` encoding. The function retries 3 times with 5s gap and validates response size > 2KB.
-
-### 3. reportlab HTML escaping
-All LLM-generated text passed to `reportlab.Paragraph()` must go through `_pdf_safe()` which escapes `&`, `<`, `>`. Raw LLM output often contains these characters and causes silent PDF generation failures.
+Hard constraints baked into the docs — keep them accurate:
+- Gemini Storybook is digital-only (no print files) → Phase 1 validation only.
+- KDP paperback ≥ 24 pages; spine text only ≥ ~100 pages; bleed 0.125";
+  premium color paper 0.002347"/page for spine width; 300 DPI.
+- Trim 6x9 works for print + Kindle; 8.5x8.5 print only.
 
 ## Development workflow
 
-**Always develop on the feature branch, merge to main without force-push:**
+**Develop on a feature branch, merge to main without force-push:**
 ```bash
 git checkout -B claude/<branch-name>
-# ... make changes, commit ...
+# ... commit ...
 git checkout main
 git merge --no-ff claude/<branch-name> -m "merge: description"
 git push origin main
@@ -110,37 +122,17 @@ git pull origin main
 docker compose up -d --build
 ```
 
-If `git pull` fails due to local UI asset conflicts (built files in `ui/assets/`):
-```bash
-git checkout -- ui/assets/ ui/index.html
-git pull origin main
-```
+## Limits (Process 1)
 
-## Pipeline data
+- Gumroad: 10 published/day (`GUMROAD_DAILY_LIMIT`); overflow retries in 12h,
+  Etsy fallback if configured.
+- Orchestrator tick: 300s. Auto-unblock after 20 min stuck as `assigned`.
+- Build/verify: 3 attempts → `BUILD_ERROR`. Publish: 3 attempts with 2^n min
+  backoff → `PUBLISH_ERROR`.
 
-`/root/workspace/pipeline.json` (inside the `agents-data` Docker volume) is the source of truth for all product state. It survives container restarts. Never delete this volume.
+## Recovering Gumroad orphan drafts
 
-### Recovering Gumroad orphan drafts
-
-If Gumroad has unpublished drafts not tracked in the pipeline:
 ```bash
 GUMROAD_API_KEY=$(grep GUMROAD_API_KEY .env | cut -d= -f2) python3 scripts/recover_gumroad_drafts.py
-# add --delete to remove orphan drafts from Gumroad
-# add --repair to reset PUBLISH_ERROR products in the pipeline
-```
-
-## Limits
-
-- **Gumroad**: 10 published products/day (enforced in code). Overflow attempts retry at midnight.
-- **Orchestrator loop**: runs every 300 seconds.
-- **Auto-unblock**: products stuck as `assigned` for >20 minutes are automatically unblocked.
-- **QA gate**: products scoring <50/100 are sent back to COPYWRITING.
-- **Publisher retries**: 3 attempts before PUBLISH_ERROR, with exponential backoff (2^n minutes).
-
-## Dashboard UI
-
-The React dashboard (`ui-src/`) is built with Vite and the output committed to `ui/`. To rebuild after UI changes:
-```bash
-cd ui-src && npm install && npm run build
-# output goes to ui/ — commit the built files
+# --delete removes orphan drafts from Gumroad
 ```
