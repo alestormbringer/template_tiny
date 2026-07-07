@@ -1,7 +1,0 @@
-.env
-logs/*.log
-data/
-__pycache__/
-*.py[cod]
-.venv/
-tinyagi-src/
